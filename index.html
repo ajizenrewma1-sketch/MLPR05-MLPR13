@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจสอบและเปรียบเทียบรายงาน (R05 - R13)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700;800&display=swap');
+    
+    :root {
+        --nika-white: #ffffff;
+        --nika-gold: #ffd700;
+        --nika-purple: #a855f7;
+        --nika-cloud: #f3f4f6;
+    }
+
+    body { 
+        font-family: 'Sarabun', sans-serif; 
+        background: radial-gradient(circle at top, #ffffff 0%, #e0e7ff 100%);
+        min-height: 100vh;
+    }
+
+    /* Effect เมฆนิกะรอบๆ Card */
+    .nika-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--nika-white);
+        box-shadow: 0 8px 32px rgba(168, 85, 247, 0.1);
+        border-radius: 2rem;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .nika-card:hover {
+        transform: translateY(-5px) scale(1.01);
+        box-shadow: 0 15px 45px rgba(168, 85, 247, 0.2);
+        border-color: var(--nika-purple);
+    }
+
+    /* ปุ่มแบบอิสระ */
+    .btn-nika {
+        background: var(--nika-white);
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-nika:hover {
+        border-color: var(--nika-purple);
+        color: var(--nika-purple);
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+    }
+
+    .tab-active { 
+        background: var(--nika-purple) !important; 
+        color: white !important; 
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+    }
+
+    /* Animation เสียงกลองแห่งการปลดปล่อย */
+    @keyframes drums-of-liberation {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    .heartbeat-nika {
+        animation: drums-of-liberation 0.8s infinite;
+    }
+</style>
+</head><header class="mb-8 flex flex-col items-center justify-center gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(168,85,247,0.15)] border-4 border-white relative overflow-hidden">
+    
+    <div class="absolute top-0 left-0 w-32 h-32 bg-purple-200/20 rounded-full -ml-16 -mt-16 blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-32 h-32 bg-amber-200/20 rounded-full -mr-16 -mb-16 blur-3xl"></div>
+
+    <div class="text-center relative z-10">
+        <div class="inline-block p-4 bg-gradient-to-tr from-purple-600 to-purple-400 rounded-full text-white shadow-lg shadow-purple-200 mb-4 heartbeat-nika border-4 border-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        </div>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tighter flex items-center justify-center gap-3">
+            ระบบตรวจ <span class="text-purple-600">สอบรายงาน</span> MLPR05 - MLPR13
+        </h1>
+        <p class="text-purple-400 text-xs font-black uppercase tracking-[0.3em] mt-1">M-FLOW</p>
+    </div>
+
+    <div class="flex flex-wrap justify-center items-center bg-slate-100/50 p-2 rounded-[2rem] border-2 border-white shadow-inner gap-2 relative z-10">
+        
+        <button onclick="switchTab('upload')" id="btn-upload" class="px-8 py-3 rounded-2xl font-black text-sm flex items-center gap-2 transition-all tab-active">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            UPLOAD
+        </button>
+
+        <button onclick="switchTab('pivot')" id="btn-pivot" class="px-8 py-3 rounded-2xl font-black text-sm flex items-center gap-2 transition-all text-slate-400 hover:text-purple-600 hover:bg-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
+            REPORT
+        </button>
+
+        <button onclick="switchTab('reconcile')" id="btn-reconcile" class="px-8 py-3 rounded-2xl font-black text-sm flex items-center gap-2 transition-all text-slate-400 hover:text-purple-600 hover:bg-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+            RECONCILE
+        </button>
+
+        <button onclick="showSummaryModal()" id="btn-summary" class="px-8 py-3 rounded-2xl font-black text-sm flex items-center gap-2 transition-all bg-white/50 text-slate-300 border border-white cursor-not-allowed opacity-50" disabled>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/></svg>
+            SUMMARY
+        </button>
+
+        <div class="h-8 border-l-2 border-purple-100 mx-2 hidden md:block"></div> 
+
+        <button onclick="clearAllData()" class="px-6 py-3 bg-rose-500 text-white rounded-2xl text-xs font-black hover:bg-rose-600 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-rose-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            RESET ALL
+        </button>
+
+    </div> 
+</header>
+
+        <!-- Error Message -->
+        <div id="error-container" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-3 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-circle"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            <span id="error-text"></span>
+        </div>
+
+        <!-- Upload View -->
+        <div id="view-upload" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards will be rendered here -->
+        </div>
+        <!-- Report View -->
+        <div id="view-pivot" class="hidden space-y-12">
+
+            <!-- R05 Section -->
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-blue-600 pl-4">เปรียบเทียบรายงาน R05</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-stretch">
+                    <div id="r05-auto" class="flex-1"></div>
+                    <div id="r05-manual" class="flex-1"></div>
+                </div>
+            </div>
+
+            <!-- R06 Section -->
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-slate-800 pl-4">รายงาน R06</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-start">
+                    <div id="r06-auto" class="flex-1 w-full"></div>
+                    <div id="r06-manual" class="flex-1 w-full"></div>
+                </div>
+            </div>
+
+<!-- R07 Section -->
+<div class="space-y-6">
+    <h2 class="text-lg font-bold border-l-4 border-rose-600 pl-4 text-rose-700">เปรียบเทียบรายงาน R07</h2>
+    <div class="flex flex-col xl:flex-row gap-6 items-start">
+        <div id="r07-auto" class="flex-1 w-full"></div>
+        <div id="r07-manual" class="flex-1 w-full"></div>
+    </div>
+</div>
+
+            <!-- R08 Section -->
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-indigo-600 pl-4 text-indigo-700">เปรียบเทียบรายงาน R08</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-stretch">
+                    <div id="r08-auto" class="flex-1"></div>
+                    <div id="r08-manual" class="flex-1"></div>
+                </div>
+            </div>
+
+<div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-emerald-600 pl-4 text-emerald-700">เปรียบเทียบรายงาน R09 (อ้างอิงข้อมูลจาก R05)</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-start">
+                    <div id="r09-auto" class="flex-1 w-full xl:max-w-2xl"></div>
+                    <div id="r09-manual" class="flex-1 w-full xl:max-w-2xl"></div>
+                </div>
+            </div>
+        </div> <div id="view-reconcile" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+                    การชนข้อมูลของรายงาน
+                </h2>
+                <div id="reconcile-buttons-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    </div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+    <button onclick="reconcileR05vsTcvs()" 
+            class="p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all text-left group">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <path d="m9 15 2 2 4-4"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg group-hover:text-indigo-600 transition-colors">ชนข้อมูล R05 กับ Tcvs</h3>
+                <p class="text-sm text-slate-500">เปรียบเทียบข้อมูลและตรวจสอบสถานะรวมถัง</p>
+            </div>
+        </div>
+    </button>
+</div>
+
+<div id="reconcile-result-container" class="mt-8"></div>
+        </div>
+ </div>
+
+    <script>
+        // --- App State ---
+        let filesData = {};
+        const REQUIRED_FILES = ['Tcvs', 'TankReport', 'R05', 'R06', 'R07', 'R08', 'R09', 'R11', 'R13'];
+        
+        // R05 State
+        let manualData = {
+            grandTotal: '',
+            checked: { C1: '', C2: '', C3: '', C4: '', total: '' },
+            unchecked: { C1: '', C2: '', C3: '', C4: '', total: '' },
+            approvalSystem: {
+                ALPR: { checked: '', unchecked: '' },
+                MLPR: { checked: '', unchecked: '' },
+                MANUAL: { checked: '', unchecked: '' }
+            }
+        };
+
+        // R06 State
+        const createInitialR06Row = () => ({ 
+            items: '', amount: '', C1: '', C2: '', C3: '', C4: '', 
+            exItems: '', exC1: '', exC2: '', exC3: '', exC4: '' 
+        });
+
+        let manualR06Data = {
+            grandTotal: '', normalTotal: '', exemptTotal: '',
+            main: {
+                nonMember: createInitialR06Row(), memberGroup: createInitialR06Row(),
+                memberThai: createInitialR06Row(), memberForeign: createInitialR06Row(),
+                memberJuridical: createInitialR06Row(), total: createInitialR06Row()
+            },
+            sla: { total: '', lessThan8: '', moreThan8: '', avgTime: '' }
+        };
+
+	// เพิ่ม State ของ R07 ไว้ตรงนี้ (ก่อน R08)
+const r07Keys = [
+    { id: 'R1', label: 'R1 = ไม่มีฐานข้อมูลในกรมขนส่ง' },
+    { id: 'R2', label: 'R2 = ไม่ติดแผ่นป้ายทะเบียน' },
+    { id: 'R3', label: 'R3 = ป้ายทะเบียนชำรุด เลือนลาง ขีดจาง' },
+    { id: 'R4', label: 'R4 = มีสิ่งบดบังป้ายทะเบียน เช่น ตุ๊กตา กันชน' },
+    { id: 'R5', label: 'R5 = ป้ายทะเบียนปรับแต่ง' },
+    { id: 'R6_RED', label: 'R6 = ป้ายแดง' },
+    { id: 'R6_SALE', label: 'R6 = เพื่อขายเพื่อซ่อม' },
+    { id: 'R6_TC', label: 'R6 = TC' },
+    { id: 'R6_QC', label: 'R6 = QC' },
+    { id: 'R6_FORBID', label: 'R6 = เป็นรถที่ได้รับอนุญาตให้ใช้ทาง เช่น ป้ายแดง รถจักรยานยนต์ รถลากจูง เป็นต้น' },
+    { id: 'R7', label: 'R7 = วัตถุอื่นๆ ที่ไม่ใช่รถ (Noise) และรถที่ไม่สามารถระบุป้ายทะเบียนได้' },
+    { id: 'R8', label: 'R8 = รถตำรวจ' },
+    { id: 'R9', label: 'R9 = รถทูตที่เก็บเงินได้' },
+    { id: 'R10', label: 'R10 = รถลาก' }
+];
+let manualR07Data = { grandTotal: '' };
+r07Keys.forEach(k => manualR07Data[k.id] = '');
+
+        // R08 State
+        const createInitialR08Row = () => ({ count: '', amount: '' });
+        let manualR08Data = {
+            totalExempt: createInitialR08Row(),
+            masterData: createInitialR08Row(),
+            periodBook: createInitialR08Row(),
+            staffApproved: createInitialR08Row()
+        };
+
+        // R09 State
+        const r09LanesList = [
+            "ด่านทับช้าง 1 Lane 1", "ด่านทับช้าง 1 Lane 2", "ด่านทับช้าง 1 Lane 3",
+            "ด่านทับช้าง 2 Lane 1", "ด่านทับช้าง 2 Lane 2", "ด่านทับช้าง 2 Lane 3",
+            "ด่านธัญบุรี 1 Lane 1", "ด่านธัญบุรี 1 Lane 2", "ด่านธัญบุรี 1 Lane 3", "ด่านธัญบุรี 1 Lane 4",
+            "ด่านธัญบุรี 2 Lane 1", "ด่านธัญบุรี 2 Lane 2", "ด่านธัญบุรี 2 Lane 3", "ด่านธัญบุรี 2 Lane 4"
+        ];
+        let manualR09Data = {};
+        r09LanesList.forEach(lane => manualR09Data[lane] = '');
+
+        // --- Core Functions ---
+        function switchTab(tab) {
+            // ควบคุมการแสดงผลหน้าจอ (Views)
+            document.getElementById('view-upload').classList.toggle('hidden', tab !== 'upload');
+            document.getElementById('view-pivot').classList.toggle('hidden', tab !== 'pivot');
+            document.getElementById('view-reconcile').classList.toggle('hidden', tab !== 'reconcile');
+
+            // ควบคุมสถานะปุ่ม (Active/Inactive)
+            document.getElementById('btn-upload').className = `px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${tab === 'upload' ? 'tab-active' : 'text-slate-500'}`;
+            document.getElementById('btn-pivot').className = `px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${tab === 'pivot' ? 'tab-active' : 'text-slate-500'}`;
+            document.getElementById('btn-reconcile').className = `px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${tab === 'reconcile' ? 'tab-active' : 'text-slate-500'}`;
+
+            if (tab === 'pivot') renderReports();
+            if (tab === 'reconcile') renderReconcileButtons(); // เรียกฟังก์ชันสร้างปุ่ม 1.1-1.5
+        }
+
+        function handleFileUpload(fileKey, input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showError(`ไฟล์ ${fileKey} ต้องเป็นนามสกุล .csv เท่านั้น`);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    const parsed = parseCSV(content);
+                    filesData[fileKey] = { name: file.name, data: parsed };
+                    renderUploadCards();
+		// --- เพิ่มบรรทัดนี้ลงไปครับ ---
+            	    updateSummaryButtonState(); 
+            	// --------------------------
+                    hideError();
+                } catch (err) {
+                    showError(`เกิดข้อผิดพลาดในการอ่านไฟล์ ${fileKey}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+async function handleMultipleFiles(key, input) {
+    const files = Array.from(input.files);
+    if (files.length === 0) return;
+
+    try {
+        Swal.fire({
+            title: 'กำลังรวมและแปลงข้อมูล...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        let combinedData = [];
+        
+        // วนลูปอ่านทุกไฟล์ที่อัปโหลดเข้ามา
+        for (const file of files) {
+            const content = await file.text();
+            const parsed = parseCSV(content); // ใช้ฟังก์ชัน Parse เดิมของระบบ
+            
+            // --- ⚙️ ขั้นตอน Transform (ปรับแต่งข้อมูล) ---
+            const transformed = parsed.map(row => ({
+                ...row,
+                _source_filename: file.name // เพิ่มชื่อไฟล์ต้นฉบับเข้าไปในข้อมูลแต่ละแถว (ตัวอย่างการ Transform)
+            }));
+            
+            // --- ⚙️ ขั้นตอน Combine (รวมข้อมูล) ---
+            combinedData = combinedData.concat(transformed);
+        }
+
+        // เก็บข้อมูลที่รวมแล้วลงใน filesData
+        filesData[key] = {
+            name: key,
+            data: combinedData,
+            fileCount: files.length
+        };
+
+        // อัปเดต UI และปุ่มสรุปผล
+        renderUploadCards();
+        if (typeof updateSummaryButtonState === 'function') updateSummaryButtonState();
+
+        Swal.fire({
+            icon: 'success',
+            title: 'รวมข้อมูลสำเร็จ',
+            text: `รวมไฟล์ ${key} ทั้งหมด ${files.length} ไฟล์ เรียบร้อยแล้ว`,
+            timer: 2000
+        });
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถประมวลผลไฟล์ได้', 'error');
+    }
+}
+
+        function parseCSV(text) {
+            const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line !== '');
+            if (lines.length === 0) return [];
+            
+            const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').replace(/^\ufeff/, ''));
+            
+            return lines.slice(1).map(line => {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') inQuotes = !inQuotes;
+                    else if (char === ',' && !inQuotes) {
+                        values.push(current.trim().replace(/^"|"$/g, ''));
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                values.push(current.trim().replace(/^"|"$/g, ''));
+                
+                const obj = {};
+                obj.__rawValues = values;
+                
+                rawHeaders.forEach((header, i) => {
+                    obj[header] = values[i] || "";
+                });
+                return obj;
+            });
+        }
+
+        function classifyVehicle(row) {
+            const possibleKeys = Object.keys(row).filter(k => k.includes('ประเภท'));
+            for (let key of possibleKeys) {
+                const val = String(row[key]).toUpperCase().replace(/\s/g, '');
+                if (val.includes('C1') || val.includes('4ล้อ')) return 'C1';
+                if (val.includes('C2') || val.includes('6ล้อ')) return 'C2';
+                if (val.includes('C3') || val.includes('มากกว่า6')) return 'C3';
+            }
+            return 'C4';
+        }
+
+        // --- Analysis Functions ---
+       function getR05Summary() {
+    if (!filesData.R05) return null;
+    const data = filesData.R05.data;
+    const stats = {
+        grandTotal: 0,
+        checked: { C1: 0, C2: 0, C3: 0, C4: 0, total: 0 },
+        unchecked: { C1: 0, C2: 0, C3: 0, C4: 0, total: 0 },
+        approvalSystem: { ALPR: { checked: 0, unchecked: 0 }, MLPR: { checked: 0, unchecked: 0 }, MANUAL: { checked: 0, unchecked: 0 } },
+        // 🚩 ส่วนที่เพิ่มเข้ามาเพื่อให้ R09 มีข้อมูลด่าน/เลน
+        main: {
+            TC1: { l1: 0, l2: 0, l3: 0, l4: 0, total: 0 },
+            TC2: { l1: 0, l2: 0, l3: 0, l4: 0, total: 0 },
+            TY1: { l1: 0, l2: 0, l3: 0, l4: 0, total: 0 },
+            TY2: { l1: 0, l2: 0, l3: 0, l4: 0, total: 0 }
+        }
+    };
+
+    data.forEach(item => {
+        const headers = Object.keys(item).filter(k => k !== '__rawValues');
+        const statusR = String(item[headers.find(h => h.includes('(R)'))] || '').trim().toUpperCase();
+        const systemType = String(item[headers.find(h => h.includes('ประเภทระบบ'))] || '').trim().toUpperCase();
+        
+        // 🚩 ดึงชื่อด่านและเลนจากข้อมูลดิบ
+        const plazaName = String(item[headers.find(h => h.includes('ชื่อด่าน'))] || '').trim();
+        const laneNo = String(item[headers.find(h => h.includes('เลน'))] || '').trim();
+
+        const category = classifyVehicle(item);
+        const isUnchecked = statusR.startsWith('R');
+        const target = isUnchecked ? stats.unchecked : stats.checked;
+        const sysKey = systemType.includes('ALPR') ? 'ALPR' : systemType.includes('MLPR') ? 'MLPR' : 'MANUAL';
+        
+        target[category]++;
+        target.total++;
+        stats.approvalSystem[sysKey][isUnchecked ? 'unchecked' : 'checked']++;
+
+        // 🚩 Logic การนับยอดแยกด่าน/เลน สำหรับส่งให้ R09
+        let plazaKey = '';
+        if (plazaName.includes('ทับช้าง 1')) plazaKey = 'TC1';
+        else if (plazaName.includes('ทับช้าง 2')) plazaKey = 'TC2';
+        else if (plazaName.includes('ธัญบุรี 1')) plazaKey = 'TY1';
+        else if (plazaName.includes('ธัญบุรี 2')) plazaKey = 'TY2';
+
+        if (plazaKey && stats.main[plazaKey]) {
+            const lKey = 'l' + laneNo; // จะได้ l1, l2, l3, l4
+            if (stats.main[plazaKey][lKey] !== undefined) {
+                stats.main[plazaKey][lKey]++;
+                stats.main[plazaKey].total++;
+            }
+        }
+    });
+
+    stats.grandTotal = stats.checked.total + stats.unchecked.total;
+    return stats;
+}
+
+        function getR06Summary() {
+            if (!filesData.R06) return null;
+            const data = filesData.R06.data;
+            const initialRow = () => ({ items: 0, amount: 0, C1: 0, C2: 0, C3: 0, C4: 0, exItems: 0, exC1: 0, exC2: 0, exC3: 0, exC4: 0 });
+            const stats = {
+                grandTotal: 0, normalTotal: 0, exemptTotal: 0,
+                main: { nonMember: initialRow(), memberGroup: initialRow(), memberThai: initialRow(), memberForeign: initialRow(), memberJuridical: initialRow(), total: initialRow() },
+                sla: { total: 0, lessThan8: 0, moreThan8: 0, avgTime: 0 }
+            };
+            let totalSlaTimeSec = 0;
+            data.forEach(item => {
+                const headers = Object.keys(item).filter(k => k !== '__rawValues');
+                const isExempt = String(item[headers.find(k => k.includes('รถยกเว้น'))] || '').trim() !== '-';
+                const userType = String(item[headers.find(k => k.includes('ประเภทผู้ใช้บริการ'))] || '').trim();
+                const fee = parseFloat(String(item[headers.find(k => k.includes('ค่าธรรมเนียม'))] || '0').replace(/[^0-9.]/g, '')) || 0;
+                const sla = String(item[headers.find(k => k.includes('ผล SLA'))] || '').trim().toUpperCase();
+                const timeStr = String(item[headers.find(k => k.includes('T2-T1'))] || '0:0');
+                
+                let mKey = userType.includes('ไทย') ? 'memberThai' : userType.includes('ต่างชาติ') ? 'memberForeign' : userType.includes('นิติบุคคล') ? 'memberJuridical' : 'nonMember';
+                const cKey = classifyVehicle(item);
+
+                if (!isExempt) {
+                    stats.normalTotal++;
+                    [mKey, 'total'].forEach(k => { stats.main[k].items++; stats.main[k].amount += fee; stats.main[k][cKey]++; });
+                } else {
+                    stats.exemptTotal++;
+                    [mKey, 'total'].forEach(k => { stats.main[k].exItems++; stats.main[k][`ex${cKey}`]++; });
+                }
+                stats.grandTotal++;
+                stats.sla.total++;
+                if (sla === 'P') stats.sla.lessThan8++; else if (sla === 'F') stats.sla.moreThan8++;
+                const t = timeStr.split(':');
+                if (t.length === 2) totalSlaTimeSec += (parseInt(t[0]) * 60) + parseInt(t[1]);
+            });
+            ['memberThai', 'memberForeign', 'memberJuridical'].forEach(k => {
+                Object.keys(stats.main[k]).forEach(prop => stats.main.memberGroup[prop] += stats.main[k][prop]);
+            });
+            if (stats.sla.total > 0) stats.sla.avgTime = (totalSlaTimeSec / 60) / stats.sla.total;
+            return stats;
+        }
+
+function getR07Summary() {
+    if (!filesData.R07) return null;
+    const data = filesData.R07.data;
+    const stats = { grandTotal: 0 };
+    r07Keys.forEach(k => stats[k.id] = 0);
+
+    data.forEach(item => {
+        const headers = Object.keys(item).filter(k => k !== '__rawValues');
+        // ค้นหาคอลัมน์ "รายละเอียดรายการรถที่ไม่สามารถตรวจสอบได้" (คอลัมน์ N)
+        const descKey = headers.find(h => h.includes('รายละเอียดรายการรถที่ไม่สามารถตรวจสอบได้'));
+        const desc = String(item[descKey] || '').trim();
+
+        if (desc) {
+            stats.grandTotal++;
+            // ตรวจสอบรหัส R ที่ขึ้นต้น
+            if (desc.startsWith('R1')) stats.R1++;
+            else if (desc.startsWith('R2')) stats.R2++;
+            else if (desc.startsWith('R3')) stats.R3++;
+            else if (desc.startsWith('R4')) stats.R4++;
+            else if (desc.startsWith('R5')) stats.R5++;
+            else if (desc.startsWith('R6')) {
+                if (desc.includes('ป้ายแดง')) stats.R6_RED++;
+                else if (desc.includes('เพื่อขาย')) stats.R6_SALE++;
+                else if (desc.includes('TC')) stats.R6_TC++;
+                else if (desc.includes('QC')) stats.R6_QC++;
+                else stats.R6_FORBID++;
+            }
+            else if (desc.startsWith('R7')) stats.R7++;
+            else if (desc.startsWith('R8')) stats.R8++;
+            else if (desc.startsWith('R9')) stats.R9++;
+            else if (desc.startsWith('R10')) stats.R10++;
+        }
+    });
+    return stats;
+}
+
+        function getR08Summary() {
+            if (!filesData.R08) return null;
+            const data = filesData.R08.data;
+            const initRow = () => ({ count: 0, amount: 0 });
+            const stats = {
+                totalExempt: initRow(),
+                masterData: initRow(),
+                periodBook: initRow(),
+                staffApproved: initRow()
+            };
+
+            data.forEach(item => {
+                const headers = Object.keys(item).filter(k => k !== '__rawValues');
+                const exemptTypeKey = headers.find(h => h.replace(/\s/g, '').includes('ประเภทรถยกเว้น'));
+                const exemptType = exemptTypeKey ? String(item[exemptTypeKey] || '').trim() : '';
+                
+                const rawValues = item.__rawValues || [];
+                const lastVal = rawValues.length > 0 ? rawValues[rawValues.length - 1] : '0';
+                const fee = parseFloat(String(lastVal).replace(/[^0-9.]/g, '')) || 0;
+
+                if (exemptType !== '') {
+                    stats.totalExempt.count++;
+                    stats.totalExempt.amount += fee;
+
+                    if (exemptType.toLowerCase().includes('master data')) {
+                        stats.masterData.count++;
+                        stats.masterData.amount += fee;
+                    }
+                    if (exemptType.includes('รถยกเว้นโดยมีหนังสือ')) {
+                        stats.periodBook.count++;
+                        stats.periodBook.amount += fee;
+                    }
+                    if (exemptType.includes('โดยเจ้าหน้าที่')) {
+                        stats.staffApproved.count++;
+                        stats.staffApproved.amount += fee;
+                    }
+                }
+            });
+            return stats;
+        }
+
+        function getR09Summary() {
+    if (!filesData.R09) return null; 
+    const data = filesData.R09.data; 
+    
+    const stats = {};
+    r09LanesList.forEach(l => stats[l] = 0);
+
+    data.forEach(item => {
+        const headers = Object.keys(item).filter(k => k !== '__rawValues');
+        
+        // 🚩 ปรับการค้นหาหัวตารางให้ครอบคลุมชื่อที่ถูกต้อง
+        const plazaKey = headers.find(h => h.includes('ด่าน'));
+        const laneKey = headers.find(h => h.includes('ช่องทาง') || h.includes('เลน'));
+
+        if (plazaKey && laneKey) {
+            const plazaRaw = String(item[plazaKey] || '').trim();
+            const laneRaw = String(item[laneKey] || '').trim();
+
+            let cleanPlaza = "";
+            if (plazaRaw.includes('ทับช้าง') && plazaRaw.includes('1')) cleanPlaza = "ด่านทับช้าง 1";
+            else if (plazaRaw.includes('ทับช้าง') && plazaRaw.includes('2')) cleanPlaza = "ด่านทับช้าง 2";
+            else if (plazaRaw.includes('ธัญบุรี') && plazaRaw.includes('1')) cleanPlaza = "ด่านธัญบุรี 1";
+            else if (plazaRaw.includes('ธัญบุรี') && plazaRaw.includes('2')) cleanPlaza = "ด่านธัญบุรี 2";
+
+            const laneMatch = laneRaw.match(/\d+/);
+            const cleanLane = laneMatch ? parseInt(laneMatch[0], 10) : null;
+
+            if (cleanPlaza && cleanLane !== null) {
+                const key = `${cleanPlaza} Lane ${cleanLane}`;
+                if (stats[key] !== undefined) {
+                    stats[key]++;
+                }
+            }
+        }
+    });
+    return stats;
+}
+
+        // --- Render Functions ---
+        function renderUploadCards() {
+    const container = document.getElementById('view-upload');
+    if (!container) return;
+
+    container.innerHTML = REQUIRED_FILES.map(key => {
+        // กำหนดชื่อที่ต้องการแสดงผล
+        let displayName = `รายงาน ${key}`;
+        if (key === 'R09') displayName = `รายงาน R09 (ใช้ไฟล์ R05)`;
+        if (key === 'Tcvs') displayName = `ไฟล์รายงาน Tcvs (เลือกได้หลายไฟล์)`;
+        if (key === 'TankReport') displayName = `ไฟล์รายงานรวมถัง (เลือกได้หลายไฟล์)`;
+
+        // เช็คว่าเป็นช่องที่ต้องการให้รองรับ Multiple หรือไม่
+        const isMultipleType = (key === 'Tcvs' || key === 'TankReport');
+        const onChangeAction = isMultipleType ? 'handleMultipleFiles' : 'handleFileUpload';
+        const multipleAttribute = isMultipleType ? 'multiple' : '';
+
+        const isUploaded = !!filesData[key];
+
+        return `
+            <div class="bg-white rounded-2xl shadow-sm border p-6 transition-all relative ${isUploaded ? 'border-green-200' : 'border-slate-200'}">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-3 rounded-xl ${isUploaded ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <h3 class="font-bold text-slate-800">${displayName}</h3> 
+                </div>
+                <input type="file" ${multipleAttribute} accept=".csv" 
+                       onchange="${onChangeAction}('${key}', this)" 
+                       class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" />
+                ${isUploaded ? `
+                    <div class="mt-2 text-xs text-green-600 font-medium">
+                        ✓ อัปโหลดแล้ว ${isMultipleType ? `(${filesData[key].fileCount} ไฟล์)` : ''}
+                    </div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// --- 1. ฟังก์ชันช่วยแยกก้อนข้อมูล R05 ---
+        function getR05SplitData() {
+            if (!filesData.R05) return { valid: [], invalid: [] };
+            const data = filesData.R05.data;
+            
+            // ใช้แค่คำว่า 'ตรวจสอบได้ (R)' เพื่อลดปัญหาเรื่องการนับช่องว่าง "รถที่ไม่สามารถ..."
+            const colR = Object.keys(data[0] || {}).find(k => k.includes('ตรวจสอบได้ (R)'));
+            
+            // เพิ่มการตรวจเช็ค: ถ้าหาไม่เจอจริงๆ ให้บอกว่าเจอคอลัมน์อะไรบ้าง
+            if (!colR) {
+                console.log("ชื่อคอลัมน์ที่มีในไฟล์:", Object.keys(data[0] || {}));
+                alert("หาคอลัมน์สำหรับแยกประเภทรถไม่เจอครับ กรุณาตรวจสอบหัวตารางในไฟล์ R05");
+                return { valid: [], invalid: [] };
+            }
+
+            const valid = data.filter(row => String(row[colR] || '').trim() === "-");
+            const invalid = data.filter(row => String(row[colR] || '').trim() !== "-");
+            return { valid, invalid };
+        }
+
+        // --- 2. ฟังก์ชันหลักสำหรับปุ่ม 1.1 - 1.4 (ชนด้วย Transaction No) ---
+        function compareTransactions(dataA, dataB, labelA, labelB) {
+            const getTransList = (data) => {
+                const key = Object.keys(data[0] || {}).find(k => k.toLowerCase().includes('transaction no'));
+                return data.map(row => String(row[key] || '').trim()).filter(v => v !== '');
+            };
+            const listA = getTransList(dataA);
+            const listB = getTransList(dataB);
+            const setA = new Set(listA);
+            const setB = new Set(listB);
+            return {
+                aInB: listA.filter(id => setB.has(id)),
+                aNotInB: listA.filter(id => !setB.has(id)),
+                bInA: listB.filter(id => setA.has(id)),
+                bNotInA: listB.filter(id => !setA.has(id)),
+                countA: listA.length, countB: listB.length
+            };
+        }
+
+        // --- 3. ฟังก์ชันสำหรับปุ่ม 1.5 (หารายการซ้ำ) ---
+        function findR05Duplicates() {
+    // 1. เช็คว่ามีข้อมูล R05 ไหม
+    if (!filesData || !filesData.R05) {
+        Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูล R05', text: 'กรุณาอัพโหลดไฟล์ก่อน' });
+        return;
+    }
+
+    const data = filesData.R05.data;
+    const map = new Map();
+    const duplicates = [];
+
+    // หัวข้อที่ใช้เช็คซ้ำตามที่คุณต้องการ
+    const targetCols = [
+        'ทะเบียนรถ', 
+        'ทะเบียนจังหวัด', 
+        'วันที่ขาเข้า', 
+        'เวลาขาเข้า', 
+        'ด่านขาเข้า'
+    ];
+
+    data.forEach((row, index) => {
+        // สร้างประโยคสำหรับเช็คซ้ำ (รวม 5 คอลัมน์)
+        const combinedKey = targetCols
+            .map(col => String(row[col] || '').trim())
+            .join(' '); // ใช้ช่องว่างคั่นตามที่คุณต้องการ
+        
+        // ดึง Transaction No. (ตรวจสอบชื่อคอลัมน์ให้ตรงกับ CSV)
+        const transNo = row['Transaction No.'] || row['Transaction No'] || 'ไม่พบเลข';
+
+        if (combinedKey.trim() !== "") {
+            if (map.has(combinedKey)) {
+                const firstMatch = map.get(combinedKey);
+                
+                // ถ้าซ้ำครั้งแรก เก็บตัวต้นฉบับก่อน
+                if (!firstMatch.isAdded) {
+                    duplicates.push({ 
+                        line: firstMatch.line, 
+                        transNo: firstMatch.transNo,
+                        content: combinedKey 
+                    });
+                    firstMatch.isAdded = true;
+                }
+                
+                // เก็บตัวที่ซ้ำปัจจุบัน
+                duplicates.push({ 
+                    line: index + 2, 
+                    transNo: transNo,
+                    content: combinedKey 
+                });
+            } else {
+                // บันทึกตัวแรกที่เจอ
+                map.set(combinedKey, { 
+                    line: index + 2, 
+                    transNo: transNo, 
+                    isAdded: false 
+                });
+            }
+        }
+    });
+
+    // 2. ส่วนการแสดงผล (ถ้าไม่ใส่ส่วนนี้ หน้าจอจะนิ่งและช่องอัพโหลดอาจค้าง)
+    // ... (โค้ดส่วนประมวลผล Map เดิมของคุณ) ...
+
+    if (duplicates.length > 0) {
+        let listHtml = `<div class="text-left space-y-3 max-h-[500px] overflow-y-auto p-2 font-sarabun">`;
+        
+        // ตัวแปรสำหรับสลับสีกลุ่ม
+        let groupIndex = 0;
+        
+        duplicates.forEach((item, i) => {
+            // เช็คว่าเป็นกลุ่มใหม่หรือไม่ (ถ้าประโยคเช็คไม่เหมือนกับรายการก่อนหน้า แปลว่าเป็นกลุ่มซ้ำชุดใหม่)
+            const isNewGroup = i > 0 && item.content !== duplicates[i-1].content;
+            
+            if (isNewGroup) groupIndex++;
+
+            // กำหนดสีพื้นหลังสลับกันตามกลุ่ม (กลุ่มที่ 1 สีขาว, กลุ่มที่ 2 สีฟ้าอ่อน เป็นต้น)
+            const bgColors = ['bg-white', 'bg-blue-50', 'bg-emerald-50', 'bg-amber-50', 'bg-purple-50'];
+            const bgColor = bgColors[groupIndex % bgColors.length];
+            const borderColor = isNewGroup ? 'border-t-4 border-t-red-500 mt-6' : 'border-gray-200';
+
+            listHtml += `
+                <div class="p-4 border-x border-b rounded-xl ${bgColor} ${borderColor} shadow-sm transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-slate-700 text-white text-[10px] px-2 py-1 rounded font-bold">กลุ่มที่ ${groupIndex + 1}</span>
+                            <span class="bg-red-500 text-white text-[10px] px-2 py-1 rounded font-bold">แถวที่ ${item.line}</span>
+                        </div>
+                        <span class="font-mono text-sm font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">
+                            ID: ${item.transNo}
+                        </span>
+                    </div>
+                    <div class="text-[12px] text-gray-600 font-medium p-2 bg-white/50 rounded border border-dashed border-gray-300">
+                        <span class="text-gray-400 text-[10px] block mb-1">ข้อมูลที่ซ้ำกัน:</span>
+                        ${item.content}
+                    </div>
+                </div>`;
+        });
+        listHtml += `</div>`;
+
+        Swal.fire({
+            title: `<div class="flex items-center justify-center gap-2">
+                        <span class="text-red-600 font-bold">พบรายการซ้ำทั้งหมด ${duplicates.length} รายการ</span>
+                    </div>`,
+            html: listHtml,
+            width: '600px',
+            confirmButtonText: 'รับทราบ',
+            confirmButtonColor: '#1e293b',
+            customClass: { popup: 'rounded-3xl' }
+        });
+    } 
+else {
+        Swal.fire({
+            icon: 'success',
+            title: 'ไม่พบรายการซ้ำ',
+            timer: 2000,
+            showConfirmButton: false,
+            customClass: { popup: 'rounded-2xl' }
+        });
+    }
+
+    // คืนค่ากลับไปให้ระบบหลัก (เผื่อมีการนำไปใช้ต่อ)
+    return duplicates;
+}
+
+        // --- 4. ฟังก์ชันควบคุมปุ่มกด (ที่คุณหาไม่เจอ) ---
+        function runReconcile(type) {
+            const { valid, invalid } = getR05SplitData();
+            let result, title, labelA, labelB;
+
+            try {
+                if (type === '05vs06') {
+                    if (!filesData.R05 || !filesData.R06) throw "กรุณาอัปโหลดไฟล์ R05 และ R06 ก่อน";
+                    result = compareTransactions(valid, filesData.R06.data, 'R05 ตรวจสอบได้', 'R06');
+                    title = "ผลการชนข้อมูล 1.1 (R05 ตรวจสอบได้ vs R06)";
+                    labelA = "R05 ตรวจสอบได้"; labelB = "R06";
+                } else if (type === '05vs07') {
+                    if (!filesData.R05 || !filesData.R07) throw "กรุณาอัปโหลดไฟล์ R05 และ R07 ก่อน";
+                    result = compareTransactions(invalid, filesData.R07.data, 'R05 ตรวจสอบไม่ได้', 'R07');
+                    title = "ผลการชนข้อมูล 1.2 (R05 ตรวจสอบไม่ได้ vs R07)";
+                    labelA = "R05 ตรวจสอบไม่ได้"; labelB = "R07";
+                } else if (type === '05vs08') {
+                    if (!filesData.R05 || !filesData.R08) throw "กรุณาอัปโหลดไฟล์ R05 และ R08 ก่อน";
+                    result = compareTransactions(valid, filesData.R08.data, 'R05 ตรวจสอบได้', 'R08');
+                    title = "ผลการชนข้อมูล 1.3 (R05 ตรวจสอบได้ vs R08)";
+                    labelA = "R05 ตรวจสอบได้"; labelB = "R08";
+                } else if (type === '06vs08') {
+                    if (!filesData.R06 || !filesData.R08) throw "กรุณาอัปโหลดไฟล์ R06 และ R08 ก่อน";
+                    result = compareTransactions(filesData.R06.data, filesData.R08.data, 'R06', 'R08');
+                    title = "ผลการชนข้อมูล 1.4 (R06 vs R08)";
+                    labelA = "R06"; labelB = "R08";
+                } else if (type === 'dup') {
+                    if (!filesData.R05) throw "กรุณาอัปโหลดไฟล์ R05 ก่อน";
+                    const dups = findR05Duplicates();
+                    showDuplicatePopup(dups);
+                    return;
+                }
+                showResultPopup(title, result, labelA, labelB);
+            } catch (err) { alert(err); }
+        }
+
+function renderReconcileButtons() {
+    const container = document.getElementById('reconcile-buttons-container');
+    if (!container) return;
+
+    const buttons = [
+        { id: '05vs06', title: '1.1 R05 ตรวจสอบได้ กับ R06', desc: 'เทียบ Transaction No. (R05 เฉพาะเครื่องหมาย "-")', color: 'blue' },
+        { id: '05vs07', title: '1.2 R05 ตรวจสอบไม่ได้ กับ R07', desc: 'เทียบ Transaction No. (R05 ที่ไม่ใช่เครื่องหมาย "-")', color: 'amber' },
+        { id: '05vs08', title: '1.3 R05 ตรวจสอบได้ กับ R08', desc: 'เทียบ Transaction No. (R05 เฉพาะเครื่องหมาย "-")', color: 'emerald' },
+        { id: '06vs08', title: '1.4 R06 กับ R08', desc: 'เทียบ Transaction No. ระหว่าง R06 และ R08', color: 'indigo' },
+        { id: 'dup', title: '1.5 หารายการซ้ำ (R05)', desc: 'ตรวจสอบข้อมูลซ้ำจากคอลัมน์ G,H,J,K,M', color: 'rose' }
+    ];
+
+    container.innerHTML = buttons.map(btn => `
+        <button onclick="runReconcile('${btn.id}')" 
+                class="p-4 bg-white border-2 border-dashed border-slate-200 rounded-xl hover:border-${btn.color}-500 hover:bg-${btn.color}-50 transition-all text-left group shadow-sm">
+            <div class="font-bold text-${btn.color}-600 mb-1 group-hover:scale-105 transition-transform">${btn.title}</div>
+            <div class="text-[11px] text-slate-400 leading-relaxed">${btn.desc}</div>
+        </button>
+    `).join('');
+}
+
+        // --- 5. ฟังก์ชัน Popup (วางต่อท้ายไปเลยครับ) ---
+        function showResultPopup(title, res, labelA, labelB) {
+            const html = `
+                <div id="modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+                            <h3 class="font-bold text-xl text-slate-800">${title}</h3>
+                            <button onclick="document.getElementById('modal').remove()" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+                        </div>
+                        <div class="p-6 overflow-y-auto space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
+                                    <div class="font-bold text-blue-800 underline mb-2">${labelA} (รวม ${res.countA})</div>
+                                    <div class="text-sm">เจอใน ${labelB}: <span class="text-green-600 font-bold">${res.aInB.length}</span></div>
+                                    <div class="text-sm">ไม่เจอใน ${labelB}: <span class="text-rose-600 font-bold">${res.aNotInB.length}</span></div>
+                                </div>
+                                <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-center">
+                                    <div class="font-bold text-indigo-800 underline mb-2">${labelB} (รวม ${res.countB})</div>
+                                    <div class="text-sm">เจอใน ${labelA}: <span class="text-green-600 font-bold">${res.bInA.length}</span></div>
+                                    <div class="text-sm">ไม่เจอใน ${labelA}: <span class="text-rose-600 font-bold">${res.bNotInA.length}</span></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <h4 class="text-xs font-bold text-rose-600 italic uppercase">❌ รายชื่อที่ไม่พบใน ${labelB}:</h4>
+                                    <div class="bg-slate-50 p-3 rounded-lg border text-[10px] font-mono max-h-40 overflow-y-auto break-all">
+                                        ${res.aNotInB.length > 0 ? res.aNotInB.join(', ') : 'ครบถ้วน'}
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <h4 class="text-xs font-bold text-rose-600 italic uppercase">❌ รายชื่อที่ไม่พบใน ${labelA}:</h4>
+                                    <div class="bg-slate-50 p-3 rounded-lg border text-[10px] font-mono max-h-40 overflow-y-auto break-all">
+                                        ${res.bNotInA.length > 0 ? res.bNotInA.join(', ') : 'ครบถ้วน'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function showDuplicatePopup(dups) {
+            const html = `
+                <div id="modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+                        <div class="p-6 border-b flex justify-between items-center bg-rose-50 text-rose-800">
+                            <h3 class="font-bold text-xl">รายการซ้ำใน R05 (อ้างอิง G,H,J,K,M)</h3>
+                            <button onclick="document.getElementById('modal').remove()" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
+                        </div>
+                        <div class="p-6 overflow-y-auto">
+                            ${dups.length > 0 ? `
+                                <div class="text-sm font-bold text-slate-500 mb-4 italic text-center">พบทั้งหมด ${dups.length} แถวที่ซ้ำกัน</div>
+                                <div class="space-y-2">
+                                    ${dups.map(d => `<div class="p-2 border-b text-xs flex gap-3"><span class="font-bold text-rose-600 min-w-[80px]">บรรทัด ${d.line}:</span> <span class="text-slate-600">${d.content}</span></div>`).join('')}
+                                </div>
+                            ` : '<div class="py-20 text-center text-slate-400">--- ไม่พบรายการซ้ำ ---</div>'}
+                        </div>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function getValidationClass(path, manualVal, systemSummary) {
+            if (!systemSummary || manualVal === '') return "";
+            let sVal = systemSummary;
+            path.split('.').forEach(k => sVal = sVal ? sVal[k] : 0);
+            const m = parseFloat(String(manualVal).replace(/,/g, '')) || 0;
+            const s = parseFloat(sVal) || 0;
+            return Math.abs(m - s) < 0.01 ? "validation-success" : "validation-error";
+        }
+
+        function renderReports() {
+            const r05Sys = getR05Summary();
+            const r06Sys = getR06Summary();
+	    const r07Sys = getR07Summary();
+            const r08Sys = getR08Summary();
+            const r09Sys = getR09Summary();
+            
+            renderR05('r05-auto', r05Sys, false);
+            renderR05('r05-manual', manualData, true, r05Sys);
+            
+            renderR06('r06-auto', r06Sys, false);
+            renderR06('r06-manual', manualR06Data, true, r06Sys);
+
+	    // --- เพิ่มส่วนของ R07 (แทรกตรงนี้) ---
+	    renderR07('r07-auto', r07Sys, false);
+	    renderR07('r07-manual', manualR07Data, true, r07Sys);
+
+            renderR08('r08-auto', r08Sys, false);
+            renderR08('r08-manual', manualR08Data, true, r08Sys);
+
+            renderR09('r09-auto', r09Sys, false);
+            renderR09('r09-manual', manualR09Data, true, r09Sys);
+        }
+
+        function renderR05(targetId, data, isManual, sysData = null) {
+    if (!isManual && !data) return;
+    const html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-blue-800'} flex justify-between items-center h-[60px]">
+                <h2 class="font-bold flex items-center gap-2">${isManual ? 'ตารางเปรียบเทียบ (Manual Entry)' : 'สรุปผลจากระบบ (Auto)'}</h2>
+                
+                ${isManual ? `
+                    <button onclick="processSingleReport('r05')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        ประมวลผล R05
+                    </button>
+                ` : ''}
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-[12px] table-fixed text-center">
+                    <thead>
+                        <tr class="bg-slate-100/80">
+                            <th rowSpan="5" class="border p-2 w-[140px]">ประเภทรถ</th>
+                            <th colSpan="8" class="border p-1 font-bold text-[10px]">รถที่วิ่งผ่านระบบ M-Flow ทั้งหมด (คัน)</th>
+                        </tr>
+                        <tr class="bg-slate-50">
+                            <th colSpan="8" class="border p-1 font-bold text-blue-700 text-base h-[45px] ${isManual ? getValidationClass('grandTotal', data.grandTotal, sysData) : ''}">
+                                ${isManual ? `<input type="text" value="${data.grandTotal}" onchange="updateVal('r05','grandTotal',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.grandTotal || 0).toLocaleString()}
+                            </th>
+                        </tr>
+                        <tr class="bg-slate-100/50">
+                            <th colSpan="4" class="border p-1 font-semibold">ตรวจสอบได้</th>
+                            <th colSpan="4" class="border p-1 font-semibold">ตรวจสอบไม่ได้</th>
+                        </tr>
+                        <tr class="bg-slate-50 text-[11px]">
+                            <th colSpan="4" class="border p-1 font-bold ${isManual ? getValidationClass('checked.total', data.checked.total, sysData) : 'text-green-600'}">
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] text-slate-400">รวมแยกฝั่ง</span>
+                                    ${isManual ? `<input type="text" value="${data.checked.total}" onchange="updateVal('r05','checked.total',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.checked.total || 0).toLocaleString()}
+                                </div>
+                            </th>
+                            <th colSpan="4" class="border p-1 font-bold ${isManual ? getValidationClass('unchecked.total', data.unchecked.total, sysData) : 'text-red-600'}">
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] text-slate-400">รวมแยกฝั่ง</span>
+                                    ${isManual ? `<input type="text" value="${data.unchecked.total}" onchange="updateVal('r05','unchecked.total',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.unchecked.total || 0).toLocaleString()}
+                                </div>
+                            </th>
+                        </tr>
+                        <tr class="bg-slate-100/30 text-[10px]">
+                            <th class="border p-1">C1</th><th class="border p-1">C2</th><th class="border p-1">C3</th><th class="border p-1">C4</th>
+                            <th class="border p-1">C1</th><th class="border p-1">C2</th><th class="border p-1">C3</th><th class="border p-1">C4</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border p-2 font-semibold bg-slate-50">แยกตามประเภท</td>
+                            ${['C1','C2','C3','C4'].map(c => `<td class="border h-[40px] ${isManual ? getValidationClass(`checked.${c}`, data.checked[c], sysData) : ''}">${isManual ? `<input type="text" value="${data.checked[c]}" onchange="updateVal('r05','checked.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (data?.checked[c] || 0).toLocaleString()}</td>`).join('')}
+                            ${['C1','C2','C3','C4'].map(c => `<td class="border h-[40px] ${isManual ? getValidationClass(`unchecked.${c}`, data.unchecked[c], sysData) : ''}">${isManual ? `<input type="text" value="${data.unchecked[c]}" onchange="updateVal('r05','unchecked.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (data?.unchecked[c] || 0).toLocaleString()}</td>`).join('')}
+                        </tr>
+                        ${['ALPR','MLPR','MANUAL'].map(s => `
+                            <tr>
+                                <td class="border p-2 text-left pl-4 font-medium">${s}</td>
+                                <td colSpan="4" class="border h-[35px] font-bold ${isManual ? getValidationClass(`approvalSystem.${s}.checked`, data.approvalSystem[s].checked, sysData) : ''}">${isManual ? `<input type="text" value="${data.approvalSystem[s].checked}" onchange="updateVal('r05','approvalSystem.${s}.checked',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.approvalSystem[s].checked || 0).toLocaleString()}</td>
+                                <td colSpan="4" class="border h-[35px] font-bold ${isManual ? getValidationClass(`approvalSystem.${s}.unchecked`, data.approvalSystem[s].unchecked, sysData) : ''}">${isManual ? `<input type="text" value="${data.approvalSystem[s].unchecked}" onchange="updateVal('r05','approvalSystem.${s}.unchecked',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.approvalSystem[s].unchecked || 0).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    document.getElementById(targetId).innerHTML = html;
+}
+
+        function renderR06(targetId, data, isManual, sysData = null) {
+    if (!isManual && !data) {
+        document.getElementById(targetId).innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[400px]">กรุณาอัปโหลดไฟล์ R06</div>`;
+        return;
+    }
+    const rows = [
+        { label: 'ไม่ใช่สมาชิก', key: 'nonMember' },
+        { label: 'สมาชิก', key: 'memberGroup', bold: true },
+        { label: 'บุคคลไทย', key: 'memberThai', indent: true },
+        { label: 'บุคคลต่างชาติ', key: 'memberForeign', indent: true },
+        { label: 'นิติบุคคล', key: 'memberJuridical', indent: true },
+        { label: 'รวม', key: 'total', isTotal: true }
+    ];
+
+    const html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-slate-800 text-white'} flex justify-between items-center h-[60px]">
+                <h2 class="font-bold flex items-center gap-2">${isManual ? 'ตารางเปรียบเทียบ (Manual Entry)' : 'สรุปผลจากระบบ (Auto)'}</h2>
+                
+                ${isManual ? `
+                    <button onclick="processSingleReport('r06')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        ประมวลผล R06
+                    </button>
+                ` : ''}
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-[1200px] w-full border-collapse text-[11px] text-center">
+                    <thead class="bg-slate-100/80 font-bold">
+    <tr>
+        <th rowSpan="4" class="border p-2 w-[50px] min-w-[50px]">จำนวนรถทั้งหมด(คัน)</th>
+        <th colSpan="11" class="border p-2 text-lg h-[50px] ${isManual ? getValidationClass('grandTotal', data.grandTotal, sysData) : 'bg-slate-200/50'}">
+            ${isManual ? `<input type="text" value="${data.grandTotal}" onchange="updateVal('r06','grandTotal',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data?.grandTotal || 0).toLocaleString()}
+        </th>
+    </tr>
+    
+    <tr>
+        <th colSpan="6" class="border p-1 h-[35px] ${isManual ? getValidationClass('normalTotal', data.normalTotal, sysData) : 'bg-blue-50 text-blue-700'}">
+            <div class="flex items-center justify-center gap-1">
+                <span>รถทั่วไป (คัน) :</span>
+                ${isManual ? `<input type="text" value="${data.normalTotal}" onchange="updateVal('r06','normalTotal',this.value)" class="w-20 h-6 text-center border border-amber-200 rounded">` : `<span>${(data?.normalTotal || 0).toLocaleString()}</span>`}
+            </div>
+        </th>
+        <th colSpan="5" class="border p-1 h-[35px] ${isManual ? getValidationClass('exemptTotal', data.exemptTotal, sysData) : 'bg-amber-50 text-amber-700'}">
+            <div class="flex items-center justify-center gap-1">
+                <span>รถยกเว้น (คัน) :</span>
+                ${isManual ? `<input type="text" value="${data.exemptTotal}" onchange="updateVal('r06','exemptTotal',this.value)" class="w-20 h-6 text-center border border-amber-200 rounded">` : `<span>${(data?.exemptTotal || 0).toLocaleString()}</span>`}
+            </div>
+        </th>
+    </tr>
+
+    <tr class="bg-slate-50">
+        <th rowSpan="2" class="border p-1 w-[45px] min-w-[45px]">รายการ</th>
+        <th rowSpan="2" class="border p-1 text-blue-800 w-[80px] min-w-[80px]">ยอดค่าผ่านทาง (บาท)</th>
+        <th colSpan="4" class="border p-1">ประเภทรถ</th>
+        <th rowSpan="2" class="border p-1 w-[45px] min-w-[45px]">รายการ</th>
+        <th colSpan="4" class="border p-1">ประเภทรถ</th>
+    </tr>
+
+    <tr class="bg-slate-50 text-[10px]">
+        <th class="border p-1 w-[45px] min-w-[45px]">C1</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C2</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C3</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C4</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C1</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C2</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C3</th>
+        <th class="border p-1 w-[45px] min-w-[45px]">C4</th>
+    </tr>
+</thead>
+                    <tbody>
+                        ${rows.map(r => {
+                            const rowData = data.main[r.key];
+                            const bgColor = r.isTotal ? (isManual ? 'bg-amber-100' : 'bg-slate-800 text-white') : r.bold ? 'bg-slate-100' : '';
+                            return `
+                                <tr class="${bgColor} h-[35px]">
+                                    <td class="border text-left p-1 ${r.indent ? 'pl-6 opacity-60' : 'font-bold'}">${r.label}</td>
+                                    <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.items`, rowData.items, sysData) : ''}">${isManual ? `<input type="text" value="${rowData.items}" onchange="updateVal('r06','main.${r.key}.items',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.items || 0).toLocaleString()}</td>
+                                    <td class="border font-mono font-bold ${isManual ? getValidationClass(`main.${r.key}.amount`, rowData.amount, sysData) : (r.isTotal ? 'text-green-400' : 'text-blue-700')}">${isManual ? `<input type="text" value="${rowData.amount}" onchange="updateVal('r06','main.${r.key}.amount',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.amount || 0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                                    ${['C1','C2','C3','C4'].map(c => `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''}">${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData[c] || 0).toLocaleString()}</td>`).join('')}
+                                    <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.exItems`, rowData.exItems, sysData) : 'text-amber-700'}">${isManual ? `<input type="text" value="${rowData.exItems}" onchange="updateVal('r06','main.${r.key}.exItems',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData.exItems || 0).toLocaleString()}</td>
+                                    ${['exC1','exC2','exC3','exC4'].map(c => `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''}">${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData[c] || 0).toLocaleString()}</td>`).join('')}
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-3 border-b ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-slate-100'} font-bold text-xs flex items-center gap-2">ข้อตกลง ตาม SLA ${isManual ? '(Manual Entry)' : ''}</div>
+            <table class="w-full text-[12px]">
+                <tr><td class="border p-2 bg-slate-50 font-medium w-1/2">จำนวนอนุมัติการสร้างรายการ</td><td class="border p-2 text-center font-bold h-[40px] ${isManual ? getValidationClass('sla.total', data.sla.total, sysData) : ''}">${isManual ? `<input type="text" value="${data.sla.total}" onchange="updateVal('r06','sla.total',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data.sla.total || 0).toLocaleString()}</td></tr>
+                <tr><td class="border p-2 bg-slate-50">อนุมัติน้อยกว่า 8 นาที</td><td class="border p-2 text-center h-[40px] ${isManual ? getValidationClass('sla.lessThan8', data.sla.lessThan8, sysData) : ''}">${isManual ? `<input type="text" value="${data.sla.lessThan8}" onchange="updateVal('r06','sla.lessThan8',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data.sla.lessThan8 || 0).toLocaleString()}</td></tr>
+                <tr><td class="border p-2 bg-slate-50">อนุมัติมากกว่า 8 นาที</td><td class="border p-2 text-center h-[40px] ${isManual ? getValidationClass('sla.moreThan8', data.sla.moreThan8, sysData) : ''}">${isManual ? `<input type="text" value="${data.sla.moreThan8}" onchange="updateVal('r06','sla.moreThan8',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data.sla.moreThan8 || 0).toLocaleString()}</td></tr>
+                <tr class="${isManual ? 'bg-amber-50' : 'bg-slate-50'}"><td class="border p-2 font-bold">ค่าเฉลี่ย (นาที)</td><td class="border p-2 text-center font-bold h-[40px] ${isManual ? getValidationClass('sla.avgTime', data.sla.avgTime, sysData) : ''}">${isManual ? `<input type="text" value="${data.sla.avgTime}" onchange="updateVal('r06','sla.avgTime',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (data.sla.avgTime || 0).toFixed(2)}</td></tr>
+            </table>
+        </div>
+    `;
+    document.getElementById(targetId).innerHTML = html;
+}
+
+function renderR07(targetId, data, isManual, sysData = null) {
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+    
+    if (!isManual && !data) {
+        targetEl.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[300px]">กรุณาอัปโหลดไฟล์ R07</div>`;
+        return;
+    }
+
+    const html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-rose-600 text-white'} flex justify-between items-center h-[60px]">
+                <h2 class="font-bold flex items-center gap-2">${isManual ? 'ตารางเปรียบเทียบ R07 (Manual Entry)' : 'สรุปผล R07 จากระบบ (Auto)'}</h2>
+
+                ${isManual ? `
+                    <button onclick="processSingleReport('r07')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        ประมวลผล R07
+                    </button>
+                ` : ''}
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-[12px] border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 font-bold">
+                            <th class="border p-2 text-left pl-4" colspan="2">จำนวนรถที่ไม่สามารถตรวจสอบได้ (คัน)</th>
+                            <th class="border p-2 w-[120px] text-center text-lg ${isManual ? getValidationClass('grandTotal', data.grandTotal, sysData) : ''}">
+                                ${isManual ? `<input type="text" value="${data.grandTotal}" onchange="updateVal('r07','grandTotal',this.value)" class="w-full text-center bg-transparent border-0 font-bold focus:bg-white">` : (data?.grandTotal || 0).toLocaleString()}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${r07Keys.map(k => `
+                            <tr class="hover:bg-slate-50">
+                                <td class="border p-2 w-[60px] text-center font-mono bg-slate-50/50">${k.id.replace('_', ' ')}</td>
+                                <td class="border p-2 text-left pl-4 font-medium text-slate-700">${k.label}</td>
+                                <td class="border p-2 text-center h-[40px] ${isManual ? getValidationClass(k.id, data[k.id], sysData) : ''}">
+                                    ${isManual ? `<input type="text" value="${data[k.id]}" onchange="updateVal('r07','${k.id}',this.value)" class="w-full text-center bg-transparent border-0 font-bold focus:bg-white">` : (data[k.id] || 0).toLocaleString()}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    targetEl.innerHTML = html;
+}
+
+        function renderR08(targetId, data, isManual, sysData = null) {
+    if (!isManual && !data) {
+        document.getElementById(targetId).innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[300px]">กรุณาอัปโหลดไฟล์ R08</div>`;
+        return;
+    }
+    const rowDefs = [
+        { label: 'จำนวนรถยกเว้นทั้งหมด (คัน)', key: 'totalExempt' },
+        { label: 'รถยกเว้นจาก Master data (คัน)', key: 'masterData' },
+        { label: 'รถยกเว้นโดยมีหนังสือมาเป็นช่วงเวลา (คัน)', key: 'periodBook' },
+        { label: 'รถยกเว้นที่อนุมัติโดยเจ้าหน้าที่ (คัน)', key: 'staffApproved' }
+    ];
+
+    const html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-indigo-600 text-white'} flex justify-between items-center h-[60px]">
+    <h2 class="font-bold flex items-center gap-2">
+        ${isManual ? 'ตารางเปรียบเทียบ R08 (Manual Entry)' : 'สรุปผล R08 จากระบบ (Auto)'}
+    </h2>
+    
+    ${isManual ? `
+        <button onclick="processSingleReport('r08')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            ประมวลผล R08
+        </button>
+    ` : ''}
+</div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-[13px] table-fixed text-center">
+                    <thead class="bg-slate-100 font-bold">
+                        <tr>
+                            <th class="border p-3 w-[45%] text-left pl-8 text-slate-500 font-medium text-xs uppercase tracking-wide">ประเภทรถยกเว้น</th>
+                            <th class="border p-3">รายการ</th>
+                            <th class="border p-3">จำนวนเงิน</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowDefs.map(r => {
+                            const rowData = data[r.key];
+                            return `
+                                <tr class="h-[50px] hover:bg-slate-50">
+                                    <td class="border p-2 text-left pl-8 font-medium">${r.label}</td>
+                                    <td class="border ${isManual ? getValidationClass(`${r.key}.count`, rowData.count, sysData) : ''}">
+                                        ${isManual ? `<input type="text" value="${rowData.count}" onchange="updateVal('r08','${r.key}.count',this.value)" class="w-full text-center bg-transparent border-0 font-bold focus:ring-0">` : (rowData.count || 0).toLocaleString()}
+                                    </td>
+                                    <td class="border ${isManual ? getValidationClass(`${r.key}.amount`, rowData.amount, sysData) : ''}">
+                                        ${isManual ? `<input type="text" value="${rowData.amount}" onchange="updateVal('r08','${r.key}.amount',this.value)" class="w-full text-center bg-transparent border-0 font-bold focus:ring-0">` : (rowData.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    document.getElementById(targetId).innerHTML = html;
+}
+
+       function renderR09(targetId, data, isManual, sysData = null) {
+    const container = document.getElementById(targetId);
+    if (!container) return; 
+
+    // 1. คำนวณยอดรวมจากเลนย่อย (สำหรับแสดงฝั่ง Auto)
+    let autoTotal = 0;
+    if (typeof r09LanesList !== 'undefined' && data) {
+        r09LanesList.forEach(lane => {
+            autoTotal += Number(data[lane] || 0);
+        });
+    }
+
+    // 2. สร้างเนื้อหา HTML โดยไม่ไปรบกวนโครงสร้างหลักของหน้าเว็บ
+    const html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-emerald-600 text-white'} flex justify-between items-center h-[60px]">
+                <h2 class="font-bold flex items-center gap-2">
+                    ${isManual ? 'ตารางเปรียบเทียบ R09 (Manual)' : 'สรุปผล R09 จากระบบ (Auto)'}
+                </h2>
+                ${isManual ? `
+                    <button onclick="processSingleReport('r09')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
+                        <i class="lucide-refresh-cw w-4 h-4"></i> ประมวลผล R09
+                    </button>
+                ` : ''}
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-[13px] table-fixed text-center">
+                    <thead class="bg-slate-100 font-bold">
+                        <tr>
+                            <th class="border p-3 w-[60%] text-left pl-8 text-slate-500 font-medium text-xs uppercase tracking-wide">ด่านและช่องทาง</th>
+                            <th class="border p-3">จำนวนรถ (คัน)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(typeof r09LanesList !== 'undefined' ? r09LanesList : []).map(lane => `
+                            <tr class="h-[40px] hover:bg-slate-50">
+                                <td class="border p-2 text-left pl-8 font-medium">${lane}</td>
+                                <td class="border ${isManual ? getValidationClass(lane, data ? data[lane] : 0, sysData) : ''}">
+                                    ${isManual ? 
+                                        `<input type="text" value="${data ? (data[lane] || 0) : 0}" onchange="updateVal('r09','${lane}',this.value)" class="w-full text-center bg-transparent border-0 font-bold focus:ring-0">` : 
+                                        (data && data[lane] ? Number(data[lane]).toLocaleString() : '0')
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot class="${isManual ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-900'} font-bold text-base">
+                        <tr>
+                            <td class="border p-3 text-right pr-8">รวมยอดทั้งหมด (Grand Total)</td>
+                            <td class="border p-3 text-center">
+                                ${isManual ? 
+                                    `<input type="text" 
+                                            value="${data && data.grandTotal ? data.grandTotal : 0}" 
+                                            onchange="updateVal('r09', 'grandTotal', this.value)" 
+                                            class="w-full text-center bg-transparent border-0 font-bold focus:ring-0 text-lg text-amber-700">` : 
+                                    `<span class="text-lg text-emerald-700">${autoTotal.toLocaleString()}</span>`
+                                }
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // แสดงผลเฉพาะใน container ที่กำหนด ไม่กระทบส่วนอื่น
+    container.innerHTML = html;
+}
+
+        // --- Data Update with Clean Spaces Rule ---
+        function updateVal(type, path, val) {
+    // 1. ลบลูกน้ำและช่องว่างออก
+    const cleanVal = val.replace(/[,\s]/g, '');
+    
+    let target;
+    if (type === 'r05') target = manualData;
+    else if (type === 'r06') target = manualR06Data;
+    else if (type === 'r07') target = manualR07Data;
+    else if (type === 'r08') target = manualR08Data;
+    else if (type === 'r09') target = manualR09Data; // บันทึกเข้าตัวแปร R09
+    else if (type === 'r11') target = manualR11Data; 
+    else if (type === 'r13') target = manualR13Data; 
+
+    if (!target) return; 
+
+    // 2. เจาะเข้าไปบันทึกค่าตาม path
+    const keys = path.split('.');
+    for (let i = 0; i < keys.length - 1; i++) {
+        target = target[keys[i]];
+    }
+    target[keys[keys.length - 1]] = cleanVal;
+
+    // 🚩 ส่วนที่แก้ไข: ลบการสั่ง renderR09 ออกจากตรงนี้
+    // ระบบจะแค่บันทึกค่าลงตัวแปร manualR09Data เงียบๆ 
+    // และจะรอจนกว่าคุณจะกดปุ่ม "ประมวลผล R09" ถึงจะเกิดการวาดตารางใหม่
+    
+    console.log(`Updated ${type} [${path}]: ${cleanVal}`); 
+}
+
+function processSingleReport(type) {
+    console.log(`Processing ${type}...`);
+
+    // ค้นหาส่วน r05
+if (type === 'r05') {
+    const r05Sys = getR05Summary();
+    /* 🚩 ลบก้อนที่เขียนทับข้อมูล manualData ออกให้หมด 
+       เช่น manualData.grandTotal = r05Sys.grandTotal; 
+       หรือ manualData.checked = ... 
+    */
+    renderR05('r05-auto', r05Sys, false);
+    renderR05('r05-manual', manualData, true, r05Sys); // ใช้ค่าจาก manualData เดิมมาเทียบ
+}
+	// ค้นหาตำแหน่งเดิมที่คุณยกมา แล้วเปลี่ยนเป็นแบบนี้ครับ:
+else if (type === 'r06') {
+    const r06Sys = getR06Summary();
+    // 🚩 ลบก้อน if (r06Sys) { ... } ที่สั่ง Copy ข้อมูลทิ้งให้หมด
+    
+    // สั่งวาดตารางเลย โดยใช้ค่าเดิมที่มีอยู่ใน manualR06Data (ที่กรอกไว้)
+    renderR06('r06-auto', r06Sys, false);
+    renderR06('r06-manual', manualR06Data, true, r06Sys);
+}
+    // 🚩 ค้นหาจุดนี้ในไฟล์ของคุณ:
+else if (type === 'r07') {
+    const r07Sys = getR07Summary();
+    
+    // 👇 ลบหรือคอมเมนต์ 2 บรรทัดนี้ออก (นี่คือตัวการที่ทำให้ค่า Auto มาทับ Manual)
+    // if (r07Sys) {
+    //     manualR07Data = JSON.parse(JSON.stringify(r07Sys));
+    // }
+    
+    // เหลือไว้แค่ 2 บรรทัดข้างล่างนี้ เพื่อสั่งให้วาดตารางใหม่เฉยๆ
+    renderR07('r07-auto', r07Sys, false);
+    renderR07('r07-manual', manualR07Data, true, r07Sys);
+}
+    else if (type === 'r08') {
+    const r08Sys = getR08Summary();
+    /* 🚩 ลบก้อน manualR08Data = ... หรือการสั่งเขียนทับข้อมูลทิ้ง */
+    renderR08('r08-auto', r08Sys, false);
+    renderR08('r08-manual', manualR08Data, true, r08Sys);
+}
+else if (type === 'r09') {
+    // 🚩 เรียกฟังก์ชันที่ดึงข้อมูลจากช่อง R09 (ที่เราแก้ไปก่อนหน้านี้)
+    const r09SysData = getR09Summary(); 
+    
+    // 🚩 เปลี่ยนเงื่อนไขการเช็ค: จากเดิมที่เช็ค !r05Sys ให้เช็ค r09SysData แทน
+    if (!r09SysData) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'ไม่พบข้อมูล',
+                text: 'กรุณาอัปโหลดไฟล์ในช่อง "รายงาน R09" เพื่อใช้คำนวณยอด',
+                confirmButtonColor: '#ef4444',
+                customClass: { popup: 'rounded-2xl' }
+            });
+        } else {
+            alert('กรุณาอัปโหลดไฟล์ในช่อง "รายงาน R09" เพื่อใช้คำนวณยอด');
+        }
+        return;
+    }
+
+    // สั่งวาดตารางโดยใช้ข้อมูลจากช่อง R09
+    renderR09('r09-auto', r09SysData, false);
+    renderR09('r09-manual', manualR09Data, true, r09SysData);
+}
+    else if (type === 'r13') {
+        const r13Sys = getR13Summary();
+        if (r13Sys) {
+            manualR13Data.grandTotal = r13Sys.grandTotal;
+            manualR13Data.rows = JSON.parse(JSON.stringify(r13Sys.rows));
+        }
+        renderR13('r13-auto', r13Sys, false);
+        renderR13('r13-manual', manualR13Data, true, r13Sys);
+    }
+    
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ',
+            text: `ประมวลผลข้อมูล ${type.toUpperCase()} เรียบร้อยแล้ว`,
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
+            customClass: { popup: 'rounded-2xl' }
+        });
+    } else {
+        alert(`ประมวลผลข้อมูล ${type.toUpperCase()} เรียบร้อยแล้ว`);
+    }
+}
+        function showError(msg) {
+            document.getElementById('error-container').classList.remove('hidden');
+            document.getElementById('error-text').innerText = msg;
+        }
+
+        function hideError() {
+            document.getElementById('error-container').classList.add('hidden');
+        }
+
+        // --- Smart Paste Event Listener ---
+        // รองรับการวางข้อมูล (Paste) ข้ามช่องที่ว่างเปล่า และลบการเว้นวรรค
+        document.addEventListener('paste', function(e) {
+            const target = e.target;
+            if (target.tagName.toLowerCase() !== 'input' || target.type !== 'text') return;
+
+            e.preventDefault();
+
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const rows = pastedText.split(/\r?\n/);
+            const flatValues = [];
+            
+            rows.forEach(row => {
+                const cells = row.split('\t');
+                cells.forEach(cell => {
+                    // ลบช่องว่างออกทั้งหมดสำหรับทุกๆ ค่าที่ถูกก็อปมา
+                    const cleanCell = cell.replace(/\s+/g, '');
+                    // เก็บเฉพาะค่าที่ไม่ใช่ความว่างเปล่า เพื่อไม่ให้ไปดันข้อมูลช่องอื่น
+                    if (cleanCell !== '') {
+                        flatValues.push(cleanCell);
+                    }
+                });
+            });
+
+            if (flatValues.length === 0) return;
+
+            // ดึง Input ทั้งหมดในตารางที่แสดงผลอยู่
+            const allInputs = Array.from(document.querySelectorAll('#view-pivot input[type="text"]'));
+            const startIndex = allInputs.indexOf(target);
+
+            if (startIndex === -1) return;
+
+            let inputIndex = startIndex;
+            for (let i = 0; i < flatValues.length; i++) {
+                if (inputIndex >= allInputs.length) break;
+
+                const val = flatValues[i];
+                const inputElement = allInputs[inputIndex];
+                inputElement.value = val;
+                // สร้าง Event เพื่ออัปเดตค่าไปยังตัวแปร ManualData อัตโนมัติ
+                inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                inputIndex++;
+            }
+        });
+
+        // ... (โค้ดส่วน window.onload เดิม) ...
+        window.onload = () => { renderUploadCards(); };
+
+        // --- ฟังก์ชันที่เพิ่มใหม่ (ต้องอยู่ภายใน script เดียวกัน) ---
+        function updateSummaryButtonState() {
+            const btn = document.getElementById('btn-summary');
+            if (!btn) return;
+            const hasFile = Object.keys(filesData).length > 0;
+            if (hasFile) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.classList.add('hover:scale-105', 'active:scale-95', 'shadow-sm');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showSummaryModal() {
+            const r05 = getR05Summary();
+            const r06 = getR06Summary();
+            const r07 = getR07Summary();
+            const r08 = getR08Summary();
+            const r09 = getR09Summary();
+
+            let r09Total = 0;
+            if(r09) Object.values(r09).forEach(v => r09Total += v);
+
+            const check = (val1, val2) => {
+                const v1 = parseFloat(val1) || 0;
+                const v2 = parseFloat(val2) || 0;
+                return {
+                    isEqual: Math.abs(v1 - v2) < 0.1,
+                    diff: v1 - v2
+                };
+            };
+
+            const results = [
+                { title: "2.1 ยอดรถผ่านระบบ (R05 vs R09)", val1: r05?.grandTotal || 0, val2: r09Total, label1: "R05 (Auto)", label2: "R09 (Auto)", res: check(r05?.grandTotal, r09Total) },
+                { 
+        title: "2.2 ยอดตรวจสอบได้ (R05 vs R06)", 
+        val1: r05?.checked?.total || 0,            // ยอดตรวจสอบได้จาก R05
+        val2: r06?.grandTotal || 0,               // ยอดรวมด้านบนสุดจาก R06 (ไม่ใช่ยอดรถทั่วไป)
+        label1: "R05 (ตรวจสอบได้)", 
+        label2: "R06 (ยอดรวมด้านบน)", 
+        res: check(r05?.checked?.total, r06?.grandTotal) 
+    },
+                { title: "2.3 ยอดที่ตรวจสอบไม่ได้ (R05 vs R07)", val1: r05?.unchecked?.total || 0, val2: r07?.grandTotal || 0, label1: "R05 ตรวจสอบไม่ได้", label2: "R07 ทั้งหมด", res: check(r05?.unchecked?.total, r07?.grandTotal) },
+                { title: "2.4 ยอดรถยกเว้น (R06 vs R08)", val1: r06?.exemptTotal || 0, val2: r08?.totalExempt?.count || 0, label1: "R06 รถยกเว้น", label2: "R08 ทั้งหมด", res: check(r06?.exemptTotal, r08?.totalExempt?.count) }
+            ];
+
+            let html = `<div class="space-y-4 font-sarabun text-left mt-4">`;
+            results.forEach(item => {
+                const statusClass = item.res.isEqual ? 'border-emerald-500 bg-emerald-50' : 'border-rose-500 bg-rose-50';
+                const icon = item.res.isEqual ? '✓ ถูกต้อง' : `✗ ไม่เท่ากัน (${item.res.diff.toLocaleString()})`;
+                html += `
+                    <div class="border-l-4 p-4 rounded-r-xl shadow-sm ${statusClass}">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-slate-700 text-sm">${item.title}</h4>
+                            <div class="text-[11px] font-bold px-2 py-0.5 rounded-full ${item.res.isEqual ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'}">${icon}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-white/50 p-2 rounded"><span class="text-slate-500 block">${item.label1}</span><span class="text-lg font-mono font-bold">${item.val1.toLocaleString()}</span></div>
+                            <div class="bg-white/50 p-2 rounded"><span class="text-slate-500 block">${item.label2}</span><span class="text-lg font-mono font-bold">${item.val2.toLocaleString()}</span></div>
+                        </div>
+                    </div>`;
+            });
+            html += `</div>`;
+
+            Swal.fire({
+                title: '<div class="text-xl font-bold">สรุปภาพรวมและการเปรียบเทียบ</div>',
+                html: html,
+                width: '600px',
+                confirmButtonText: 'ปิดหน้าต่าง',
+                confirmButtonColor: '#1e293b',
+                customClass: { popup: 'rounded-3xl' }
+            });
+        }
+
+// --- ส่วนที่ 1: ตัวแปรส่วนกลางสำหรับเก็บข้อมูลล่าสุด ---
+let drillDownData = { r05: {}, tcvs: {} };
+let lastReconcileResult = null; // เพิ่มตัวแปรเก็บผลลัพธ์ล่าสุดเพื่อใช้เรียกกลับมา
+
+// ฟังก์ชันช่วยเหลือ: แปลงวันที่
+function formatTcvsDateForTank(dateStr) {
+    if (!dateStr) return "";
+    const p = String(dateStr).trim().split(/[-/]/);
+    if (p.length === 3 && p[0].length === 4) {
+        return `${p[2].padStart(2,'0')}/${p[1].padStart(2,'0')}/${p[0]}`;
+    }
+    return dateStr;
+}
+
+// --- ส่วนที่ 2: ฟังก์ชันหลักสำหรับการชนข้อมูล ---
+function reconcileR05vsTcvs() {
+    if (!filesData['R05'] || !filesData['Tcvs'] || !filesData['TankReport']) {
+        Swal.fire('ข้อมูลไม่ครบ', 'กรุณาอัปโหลด R05, Tcvs และ รวมถังให้ครบก่อน', 'warning');
+        return;
+    }
+
+    drillDownData = { r05: {}, tcvs: {} };
+    const r05Raw = filesData['R05'].data;
+    const tcvsRaw = filesData['Tcvs'].data;
+    const tankRaw = filesData['TankReport'].data;
+
+    const totalR05 = r05Raw.length;
+    const totalTcvs = tcvsRaw.length;
+    const diffTotal = Math.abs(totalR05 - totalTcvs);
+
+    const r05CleanSet = new Set(r05Raw.map(r => {
+        const val = String(r['Transaction No.'] || "").trim();
+        return val.substring(0, 30).slice(-8);
+    }));
+
+    const tankStatusMap = new Map();
+    tankRaw.forEach(row => {
+        const dt = String(row['ช่วงเวลาผ่านทาง'] || "").trim();
+        const status = String(row['สถานะ'] || "").trim();
+        if (dt && status !== "ใช้งาน" && !tankStatusMap.has(dt)) {
+            tankStatusMap.set(dt, status);
+        }
+    });
+
+    let r05Found = 0, r05NotFound = 0;
+    const tcvsSet = new Set(tcvsRaw.map(r => String(r['Transaction No.'] || "").trim()));
+
+    r05Raw.forEach(row => {
+        const fullTx = String(row['Transaction No.'] || "").trim();
+        const clean8 = fullTx.substring(0, 30).slice(-8);
+        if (tcvsSet.has(clean8)) {
+            r05Found++;
+        } else {
+            r05NotFound++;
+            let key = fullTx;
+            if (fullTx.startsWith('MT')) key = fullTx.substring(0, 3);
+            else if (fullTx.startsWith('TW')) key = fullTx.substring(0, 2);
+            if (!drillDownData.r05[key]) drillDownData.r05[key] = [];
+            drillDownData.r05[key].push(fullTx);
+        }
+    });
+
+    let tcvsFound = 0, tcvsNotFound = 0;
+    tcvsRaw.forEach(row => {
+        const tcvsTx = String(row['Transaction No.'] || "").trim();
+        if (r05CleanSet.has(tcvsTx)) {
+            tcvsFound++;
+        } else {
+            tcvsNotFound++;
+            const dateParts = String(row['Date'] || "").split(/[-/]/);
+            const formattedDate = dateParts.length === 3 && dateParts[0].length === 4 ? `${dateParts[2].padStart(2,'0')}/${dateParts[1].padStart(2,'0')}/${dateParts[0]}` : row['Date'];
+            const searchDT = `${formattedDate} ${String(row['Time'] || "").trim()}`;
+            const status = tankStatusMap.get(searchDT) || "ไม่พบสถานะ";
+            if (!drillDownData.tcvs[status]) drillDownData.tcvs[status] = [];
+            drillDownData.tcvs[status].push({ tx: tcvsTx, dt: searchDT });
+        }
+    });
+
+    // เก็บผลลัพธ์ลงตัวแปร Global
+    lastReconcileResult = {
+        totalR05, totalTcvs, diffTotal,
+        r05Found, r05NotFound,
+        tcvsFound, tcvsNotFound,
+        diffNotFound: Math.abs(r05NotFound - tcvsNotFound)
+    };
+
+    renderFinalPopup(lastReconcileResult);
+}
+
+// --- ส่วนที่ 3: ฟังก์ชันแสดงป๊อปอัพสรุป ---
+function renderFinalPopup(d) {
+    Swal.fire({
+        title: '<div class="text-2xl font-black text-slate-800">สรุปการชนข้อมูล R05 vs Tcvs</div>',
+        width: '1000px',
+        confirmButtonText: 'ปิดหน้ารายงาน',
+        confirmButtonColor: '#4f46e5',
+        html: `
+            <div class="text-left space-y-6 mt-4 font-sans">
+                <div class="bg-slate-100 p-6 rounded-3xl border border-slate-200 shadow-inner">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
+                            <div class="space-y-1">
+                                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">📊 ข้อมูลทั้งหมดในไฟล์</h5>
+                                <div class="text-sm text-slate-600">R05: <span class="font-bold text-indigo-600">${d.totalR05.toLocaleString()}</span></div>
+                                <div class="text-sm text-slate-600">Tcvs: <span class="font-bold text-emerald-600">${d.totalTcvs.toLocaleString()}</span></div>
+                            </div>
+                            <div class="text-center bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-lg ml-4">
+                                <div class="text-[10px] uppercase opacity-70 font-bold text-nowrap">ส่วนต่างรวม</div>
+                                <div class="text-3xl font-black">${d.diffTotal.toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
+                            <div class="space-y-1">
+                                <h5 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">🔍 ข้อมูลที่หาไม่พบ</h5>
+                                <div class="text-sm text-slate-600">R05 ไม่พบ: <span class="font-bold text-rose-500">${d.r05NotFound.toLocaleString()}</span></div>
+                                <div class="text-sm text-slate-600">Tcvs ไม่พบ: <span class="font-bold text-rose-500">${d.tcvsNotFound.toLocaleString()}</span></div>
+                            </div>
+                            <div class="text-center bg-rose-600 text-white px-6 py-3 rounded-2xl shadow-lg ml-4">
+                                <div class="text-[10px] uppercase opacity-80 font-bold text-nowrap">ส่วนต่างไม่พบ</div>
+                                <div class="text-3xl font-black">${d.diffNotFound.toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 flex flex-col h-full shadow-sm">
+                        <h4 class="font-bold text-indigo-700 mb-4 flex items-center gap-2 text-lg">
+                            <span class="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-bold uppercase">R05</span>
+                            ไม่พบข้อมูลใน Tcvs
+                        </h4>
+                        <div class="flex-grow space-y-2 overflow-y-auto max-h-80 pr-2 custom-scrollbar">
+                            ${Object.keys(drillDownData.r05).map(key => `
+                                <div onclick="showDrillDown('${key}', 'r05')" 
+                                     class="cursor-pointer flex justify-between items-center bg-white p-4 rounded-xl border border-indigo-100 shadow-sm transition-all hover:scale-[1.02] hover:bg-indigo-50 active:scale-95 group">
+                                    <span class="font-black text-xl text-slate-700 group-hover:text-indigo-600">${key}</span>
+                                    <span class="bg-indigo-600 text-white px-5 py-1 rounded-full font-black text-xl shadow-md">${drillDownData.r05[key].length.toLocaleString()}</span>
+                                </div>
+                            `).join('') || '<div class="text-center text-slate-400 py-10 italic font-bold">ไม่พบรายการค้าง</div>'}
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 flex flex-col h-full shadow-sm">
+                        <h4 class="font-bold text-emerald-700 mb-4 flex items-center gap-2 text-lg">
+                            <span class="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center text-xs font-bold uppercase">Tcvs</span>
+                            ไม่พบข้อมูลใน R05
+                        </h4>
+                        <div class="flex-grow space-y-2 overflow-y-auto max-h-80 pr-2 custom-scrollbar">
+                            ${Object.keys(drillDownData.tcvs).map(key => `
+                                <div onclick="showDrillDown('${key}', 'tcvs')" 
+                                     class="cursor-pointer flex justify-between items-center bg-white p-4 rounded-xl border border-emerald-100 shadow-sm transition-all hover:scale-[1.02] hover:bg-emerald-50 active:scale-95 group">
+                                    <span class="font-black text-slate-700 text-lg group-hover:text-emerald-600">${key}</span>
+                                    <span class="bg-emerald-600 text-white px-5 py-1 rounded-full font-black text-xl shadow-md">${drillDownData.tcvs[key].length.toLocaleString()}</span>
+                                </div>
+                            `).join('') || '<div class="text-center text-slate-400 py-10 italic font-bold">ไม่พบรายการค้าง</div>'}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center text-[10px] text-slate-400 italic font-bold uppercase tracking-widest animate-pulse">💡 คลิกที่รายการเพื่อดูเลข Transaction ที่หาไม่พบ</div>
+            </div>
+            <style>
+                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+            </style>
+        `
+    });
+}
+
+// --- ส่วนที่ 4: ฟังก์ชันแสดงป๊อปอัพรายละเอียดชั้นที่ 2 ---
+function showDrillDown(category, type) {
+    const list = drillDownData[type][category];
+    let contentHtml = '';
+
+    if (type === 'r05') {
+        contentHtml = `
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                ${list.map(tx => `<div class="bg-indigo-50 p-2 rounded-lg border border-indigo-100 font-mono text-center font-bold text-indigo-700">${tx}</div>`).join('')}
+            </div>
+        `;
+    } else {
+        contentHtml = `
+            <div class="overflow-hidden rounded-2xl border border-slate-200">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-800 text-white">
+                        <tr>
+                            <th class="p-3">Transaction No.</th>
+                            <th class="p-3">ช่วงเวลาผ่านทาง</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        ${list.map(item => `
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-slate-700">${item.tx}</td>
+                                <td class="p-3 text-slate-500 font-medium">${item.dt}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    Swal.fire({
+        title: `<div class="text-xl font-black text-slate-800">กลุ่มข้อมูล: ${category}</div>`,
+        width: '700px',
+        html: `<div class="mt-4 max-h-[500px] overflow-y-auto custom-scrollbar p-2">${contentHtml}</div>`,
+        showCancelButton: true,
+        confirmButtonText: 'กลับหน้าสรุป',
+        cancelButtonText: 'ปิดทั้งหมด',
+        confirmButtonColor: '#4f46e5',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true
+    }).then((result) => {
+        // 🚩 เมื่อกด "กลับหน้าสรุป" (Confirm Button) ให้เรียก renderFinalPopup กลับมา
+        if (result.isConfirmed) {
+            renderFinalPopup(lastReconcileResult);
+        }
+    });
+}
+  
+function clearAllData() {
+    Swal.fire({
+        title: 'ยืนยันการล้างข้อมูล?',
+        text: "ไฟล์ที่อัปโหลดและผลการประมวลผลทั้งหมดจะถูกลบทิ้ง",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48', // สีแดง
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ลบทั้งหมด',
+        cancelButtonText: 'ยกเลิก',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // 1. ล้างข้อมูลในตัวแปร
+            filesData = {};
+            drillDownData = { r05: {}, tcvs: {} };
+            lastReconcileResult = null;
+
+            // 2. รีเซ็ตหน้าจออัปโหลด
+            if (typeof renderUploadCards === 'function') renderUploadCards();
+
+            // 3. ล้างหน้าจอผลลัพธ์
+            const resContainer = document.getElementById('reconcile-result-container');
+            if (resContainer) resContainer.innerHTML = '';
+
+            // 4. แจ้งเตือนและกลับหน้าแรก
+            Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเรียบร้อย', timer: 1000, showConfirmButton: false });
+            
+            // เปลี่ยนหน้ากลับไปที่หน้าอัปโหลด (ถ้ามีฟังก์ชัน switchTab หรือ switchView)
+            if (typeof switchTab === 'function') switchTab('upload');
+            else if (typeof switchView === 'function') switchView('upload');
+        }
+    });
+}
+
+	</script>
+</body>
+</html>
