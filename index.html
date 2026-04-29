@@ -3,74 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบตรวจสอบและเปรียบเทียบรายงาน (R05 - R13)</title>
+    <title>ระบบตรวจสอบรายงาน R05 - R13 (Nika Edition)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700;800&display=swap');
-    
-    :root {
-        --nika-white: #ffffff;
-        --nika-gold: #ffd700;
-        --nika-purple: #a855f7;
-        --nika-cloud: #f3f4f6;
-    }
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700;800&display=swap');
+        
+        :root {
+            --nika-purple: #a855f7;
+            --nika-gold: #fbbf24;
+            --nika-success: #10b981;
+            --nika-error: #f43f5e;
+        }
 
-    body { 
-        font-family: 'Sarabun', sans-serif; 
-        background: radial-gradient(circle at top, #ffffff 0%, #e0e7ff 100%);
-        min-height: 100vh;
-    }
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background: radial-gradient(circle at top, #ffffff 0%, #f1f5f9 100%);
+            min-height: 100vh;
+        }
 
-    /* Effect เมฆนิกะรอบๆ Card */
-    .nika-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        border: 2px solid var(--nika-white);
-        box-shadow: 0 8px 32px rgba(168, 85, 247, 0.1);
-        border-radius: 2rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
+        /* ☁️ Cloud Card Effect พื้นฐาน */
+        .nika-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ffffff;
+            box-shadow: 0 10px 30px rgba(168, 85, 247, 0.08);
+            border-radius: 2.5rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .nika-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(168, 85, 247, 0.15); }
 
-    .nika-card:hover {
-        transform: translateY(-5px) scale(1.01);
-        box-shadow: 0 15px 45px rgba(168, 85, 247, 0.2);
-        border-color: var(--nika-purple);
-    }
 
-    /* ปุ่มแบบอิสระ */
-    .btn-nika {
-        background: var(--nika-white);
-        border: 2px solid #e2e8f0;
-        transition: all 0.3s;
-        position: relative;
-        overflow: hidden;
-    }
+        /* =========================================================
+           👇 1. วาง CSS สำหรับสีตาราง (เขียว/แดง) ตรงนี้ครับ 👇
+           ========================================================= */
 
-    .btn-nika:hover {
-        border-color: var(--nika-purple);
-        color: var(--nika-purple);
-        box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
-    }
+        /* ปรับ nika-card เมื่ออยู่บนแท็กตาราง (tr) ไม่ให้มีสีพื้นหลังขาวทับ */
+        tr.nika-card {
+            background: transparent !important; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); /* คงเงาบางๆ ไว้ */
+        }
 
-    .tab-active { 
-        background: var(--nika-purple) !important; 
-        color: white !important; 
-        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
-    }
+        /* สีเมื่อข้อมูลตรงกัน (เขียว) */
+        .row-match { 
+            background-color: #dcfce7 !important; 
+            color: #166534 !important; 
+        }
 
-    /* Animation เสียงกลองแห่งการปลดปล่อย */
-    @keyframes drums-of-liberation {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-    }
-    .heartbeat-nika {
-        animation: drums-of-liberation 0.8s infinite;
-    }
-</style>
-</head><header class="mb-8 flex flex-col items-center justify-center gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(168,85,247,0.15)] border-4 border-white relative overflow-hidden">
+        /* สีเมื่อข้อมูลคลาดเคลื่อน (แดง) */
+        .row-mismatch { 
+            background-color: #fee2e2 !important; 
+            color: #991b1b !important; 
+            font-weight: bold; 
+        }
+
+        /* เพิ่มระยะห่างระหว่างแถว */
+        .nika-table-row {
+            border-bottom: 8px solid transparent; 
+            background-clip: padding-box;
+        }
+
+        /* ========================================================= */
+
+
+        /* ⚡ Tab Active Style */
+        .tab-active { 
+            background: var(--nika-purple) !important; 
+            color: white !important; 
+            box-shadow: 0 10px 20px rgba(168, 85, 247, 0.3) !important;
+        }
+
+        /* 🥁 Heartbeat Animation */
+        @keyframes drums-of-liberation {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(168,85,247,0.4)); }
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 15px rgba(168,85,247,0.7)); }
+        }
+        .heartbeat-nika { animation: drums-of-liberation 0.8s infinite; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+    </head>
+
+	<header class="mb-8 flex flex-col items-center justify-center gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(168,85,247,0.15)] border-4 border-white relative overflow-hidden">
     
     <div class="absolute top-0 left-0 w-32 h-32 bg-purple-200/20 rounded-full -ml-16 -mt-16 blur-3xl"></div>
     <div class="absolute bottom-0 right-0 w-32 h-32 bg-amber-200/20 rounded-full -mr-16 -mb-16 blur-3xl"></div>
@@ -949,12 +967,28 @@ function renderReconcileButtons() {
         }
 
         function getValidationClass(path, manualVal, systemSummary) {
+            // 1. ถ้ายังไม่ได้กดประมวลผล หรือช่องว่างเปล่า ให้เป็นสีใสปกติ
             if (!systemSummary || manualVal === '') return "";
+            
+            // 2. ดึงค่าจากระบบ (System) มาเทียบ
             let sVal = systemSummary;
             path.split('.').forEach(k => sVal = sVal ? sVal[k] : 0);
+            
+            // 3. แปลงอักขระและลูกน้ำให้กลายเป็นตัวเลขเพียวๆ
             const m = parseFloat(String(manualVal).replace(/,/g, '')) || 0;
             const s = parseFloat(sVal) || 0;
-            return Math.abs(m - s) < 0.01 ? "validation-success" : "validation-error";
+            
+            // 4. เปรียบเทียบค่า (ยอมให้ทศนิยมต่างกันได้นิดหน่อย)
+            const isMatch = Math.abs(m - s) < 0.01;
+            
+            // 5. ⚡ พลังนิกะ: ใช้คลาสของ Tailwind แบบบังคับทับ (!important) 
+            if (isMatch) {
+                // 🟢 กรณีถูกต้อง: พื้นหลังเขียวมรกต ตัวอักษรเขียวเข้ม
+                return "!bg-emerald-100 !text-emerald-800 font-black shadow-inner";
+            } else {
+                // 🔴 กรณีคลาดเคลื่อน: พื้นหลังแดง ตัวอักษรแดง ขอบแดง และกระพริบเตือน!
+                return "!bg-rose-200 !text-rose-900 font-black ring-2 ring-inset ring-rose-500 animate-pulse";
+            }
         }
 
         function renderReports() {
