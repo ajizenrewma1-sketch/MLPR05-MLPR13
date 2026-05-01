@@ -972,30 +972,32 @@ function renderReconcileButtons() {
             document.body.insertAdjacentHTML('beforeend', html);
         }
 
-        function getValidationClass(path, manualVal, systemSummary) {
-            // 1. ถ้ายังไม่ได้กดประมวลผล หรือช่องว่างเปล่า ให้เป็นสีใสปกติ
-            if (!systemSummary || manualVal === '') return "";
-            
-            // 2. ดึงค่าจากระบบ (System) มาเทียบ
-            let sVal = systemSummary;
-            path.split('.').forEach(k => sVal = sVal ? sVal[k] : 0);
-            
-            // 3. แปลงอักขระและลูกน้ำให้กลายเป็นตัวเลขเพียวๆ
-            const m = parseFloat(String(manualVal).replace(/,/g, '')) || 0;
-            const s = parseFloat(sVal) || 0;
-            
-            // 4. เปรียบเทียบค่า (ยอมให้ทศนิยมต่างกันได้นิดหน่อย)
-            const isMatch = Math.abs(m - s) < 0.01;
-            
-            // 5. ⚡ พลังนิกะ: ใช้คลาสของ Tailwind แบบบังคับทับ (!important) 
-            if (isMatch) {
-                // 🟢 กรณีถูกต้อง: พื้นหลังเขียวมรกต ตัวอักษรเขียวเข้ม
-                return "!bg-emerald-100 !text-emerald-800 font-black shadow-inner";
-            } else {
-                // 🔴 กรณีคลาดเคลื่อน: พื้นหลังแดง ตัวอักษรแดง ขอบแดง และกระพริบเตือน!
-                return "!bg-rose-200 !text-rose-900 font-black ring-2 ring-inset ring-rose-500 animate-pulse";
-            }
-        }
+        function getValidationClass(field, manualVal, autoData) {
+    // 1. ถ้ายังไม่กรอกข้อมูล (ค่าว่าง) ให้เป็นสีพื้นปกติ (ไม่เขียวไม่แดง)
+    if (manualVal === undefined || manualVal === null || manualVal === '') {
+        return 'bg-white'; 
+    }
+
+    let compareVal;
+    // 2. แยก Logic ระหว่างช่องปกติกับ Grand Total
+    if (field === 'grandTotal') {
+        // สำหรับ Grand Total เราส่งตัวเลขยอดรวมมาโดยตรง (autoTotal)
+        compareVal = autoData;
+    } else {
+        // สำหรับเลนปกติ ดึงค่าจาก Object sysData
+        compareVal = (autoData && autoData[field]) ? autoData[field] : 0;
+    }
+
+    // 3. เปรียบเทียบโดยแปลงเป็นตัวเลขทั้งคู่ (กัน Error จาก String)
+    const v1 = Number(manualVal);
+    const v2 = Number(compareVal);
+
+    if (v1 === v2) {
+        return 'bg-emerald-100 text-emerald-700 font-bold'; // กรอกถูก = เขียว
+    } else {
+        return 'bg-red-100 text-red-700 animate-pulse font-bold'; // กรอกผิด = แดงนิกะ
+    }
+}
 
         function renderReports() {
             const r05Sys = getR05Summary();
@@ -1308,15 +1310,20 @@ function renderR07(targetId, data, isManual, sysData = null) {
     const container = document.getElementById(targetId);
     if (!container) return; 
 
-    // 1. คำนวณยอดรวมจากเลนย่อย (สำหรับแสดงฝั่ง Auto)
+    // 1. คำนวณยอดรวมของฝั่ง Auto (Summary) เพื่อใช้แสดงผลและเปรียบเทียบ
     let autoTotal = 0;
-    if (typeof r09LanesList !== 'undefined' && data) {
+    if (sysData) {
+        // กรณีเป็นตาราง Manual ให้คำนวณยอดรวมจากข้อมูลระบบที่ส่งมา (sysData)
+        r09LanesList.forEach(lane => {
+            autoTotal += Number(sysData[lane] || 0);
+        });
+    } else if (data) {
+        // กรณีเป็นตาราง Auto เอง ให้คำนวณจาก data
         r09LanesList.forEach(lane => {
             autoTotal += Number(data[lane] || 0);
         });
     }
 
-    // 2. สร้างเนื้อหา HTML โดยไม่ไปรบกวนโครงสร้างหลักของหน้าเว็บ
     const html = `
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-emerald-600 text-white'} flex justify-between items-center h-[60px]">
@@ -1325,7 +1332,8 @@ function renderR07(targetId, data, isManual, sysData = null) {
                 </h2>
                 ${isManual ? `
                     <button onclick="processSingleReport('r09')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2">
-                        <i class="lucide-refresh-cw w-4 h-4"></i> ประมวลผล R09
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                        ประมวลผล R09
                     </button>
                 ` : ''}
             </div>
@@ -1350,26 +1358,26 @@ function renderR07(targetId, data, isManual, sysData = null) {
                             </tr>
                         `).join('')}
                     </tbody>
-                    <tfoot class="${isManual ? 'bg-amber-50 text-amber-900' : 'bg-emerald-50 text-emerald-900'} font-bold text-base">
+                    <tfoot class="${isManual ? 'bg-amber-50' : 'bg-emerald-50'} font-bold">
                         <tr>
                             <td class="border p-3 text-right pr-8">รวมยอดทั้งหมด (Grand Total)</td>
-                            <td class="border p-3 text-center">
-                                ${isManual ? 
-                                    `<input type="text" 
-                                            value="${data && data.grandTotal ? data.grandTotal : 0}" 
-                                            onchange="updateVal('r09', 'grandTotal', this.value)" 
-                                            class="w-full text-center bg-transparent border-0 font-bold focus:ring-0 text-lg text-amber-700">` : 
-                                    `<span class="text-lg text-emerald-700">${autoTotal.toLocaleString()}</span>`
-                                }
-                            </td>
+                            <!-- ⚡ เพิ่มการตรวจสอบเงื่อนไขสีที่ช่อง Grand Total ตรงนี้ครับ -->
+                            <td class="border p-3 text-center ${isManual ? getValidationClass('grandTotal', (data && data.grandTotal !== undefined ? data.grandTotal : ''), autoTotal) : 'text-emerald-700 text-lg'}">
+    ${isManual ? 
+        `<input type="text" 
+                value="${data && data.grandTotal !== undefined ? data.grandTotal : ''}" 
+                onchange="updateVal('r09', 'grandTotal', this.value)" 
+                class="w-full text-center bg-transparent border-0 font-bold focus:ring-0 text-lg"
+                placeholder="กรอกยอดรวม">` : 
+        `<span>${autoTotal.toLocaleString()}</span>`
+    }
+</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
     `;
-    
-    // แสดงผลเฉพาะใน container ที่กำหนด ไม่กระทบส่วนอื่น
     container.innerHTML = html;
 }
 
@@ -1848,37 +1856,79 @@ function showDrillDown(category, type) {
 }
   
 function clearAllData() {
-    Swal.fire({
-        title: 'ยืนยันการล้างข้อมูล?',
-        text: "ไฟล์ที่อัปโหลดและผลการประมวลผลทั้งหมดจะถูกลบทิ้ง",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e11d48', // สีแดง
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'ใช่, ลบทั้งหมด',
-        cancelButtonText: 'ยกเลิก',
-        reverseButtons: true
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // 1. ล้างข้อมูลในตัวแปร
-            filesData = {};
-            drillDownData = { r05: {}, tcvs: {} };
-            lastReconcileResult = null;
+    // 1. ล้างข้อมูลไฟล์ที่อัปโหลดไว้ (State ของระบบ)
+    filesData = {};
 
-            // 2. รีเซ็ตหน้าจออัปโหลด
-            if (typeof renderUploadCards === 'function') renderUploadCards();
-
-            // 3. ล้างหน้าจอผลลัพธ์
-            const resContainer = document.getElementById('reconcile-result-container');
-            if (resContainer) resContainer.innerHTML = '';
-
-            // 4. แจ้งเตือนและกลับหน้าแรก
-            Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเรียบร้อย', timer: 1000, showConfirmButton: false });
-            
-            // เปลี่ยนหน้ากลับไปที่หน้าอัปโหลด (ถ้ามีฟังก์ชัน switchTab หรือ switchView)
-            if (typeof switchTab === 'function') switchTab('upload');
-            else if (typeof switchView === 'function') switchView('upload');
+    // 2. ล้างข้อมูลที่กรอกด้วยมือ (Manual State) กลับเป็นค่าเริ่มต้นทั้งหมด
+    // ล้าง R05
+    manualData = {
+        grandTotal: '',
+        checked: { C1: '', C2: '', C3: '', C4: '', total: '' },
+        unchecked: { C1: '', C2: '', C3: '', C4: '', total: '' },
+        approvalSystem: {
+            ALPR: { checked: '', unchecked: '' },
+            MLPR: { checked: '', unchecked: '' },
+            MANUAL: { checked: '', unchecked: '' }
         }
+    };
+
+    // ล้าง R06
+    manualR06Data = {
+        grandTotal: '', normalTotal: '', exemptTotal: '',
+        main: {
+            nonMember: createInitialR06Row(), memberGroup: createInitialR06Row(),
+            memberThai: createInitialR06Row(), memberForeign: createInitialR06Row(),
+            memberJuridical: createInitialR06Row(), total: createInitialR06Row()
+        },
+        sla: { total: '', lessThan8: '', moreThan8: '', avgTime: '' }
+    };
+
+    // ล้าง R07
+    manualR07Data = { grandTotal: '' };
+    r07Keys.forEach(k => manualR07Data[k.id] = '');
+
+    // ล้าง R08
+    manualR08Data = {
+        totalExempt: createInitialR08Row(),
+        masterData: createInitialR08Row(),
+        periodBook: createInitialR08Row(),
+        staffApproved: createInitialR08Row()
+    };
+
+    // ล้าง R09
+    manualR09Data = {};
+    r09LanesList.forEach(lane => manualR09Data[lane] = '');
+
+    // 3. รีเซ็ตหน้าจอ UI
+    // - ล้างช่อง Input File ทุกช่อง
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => { input.value = ''; });
+
+    // - วาดการ์ดอัปโหลดใหม่ (เพื่อให้เครื่องหมายถูกหายไป)
+    renderUploadCards();
+
+    // - ปิดปุ่ม Summary
+    updateSummaryButtonState();
+
+    // - ล้างตารางในหน้า Report (ถ้ามีการแสดงผลอยู่)
+    const reportContainers = [
+        'r05-auto', 'r05-manual', 'r06-auto', 'r06-manual', 
+        'r07-auto', 'r07-manual', 'r08-auto', 'r08-manual', 
+        'r09-auto', 'r09-manual'
+    ];
+    reportContainers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+
+    // 4. แจ้งเตือนความสำเร็จ (ใช้ SweetAlert2 ตามที่คุณมีในระบบ)
+    Swal.fire({
+        icon: 'success',
+        title: 'ล้างข้อมูลสำเร็จ',
+        text: 'ข้อมูลที่อัปโหลดและข้อมูลที่กรอกทั้งหมดถูกรีเซ็ตแล้ว',
+        timer: 1500,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-[2rem]' }
     });
 }
 
