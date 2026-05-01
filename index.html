@@ -536,29 +536,35 @@ function getR07Summary() {
 
     data.forEach(item => {
         const headers = Object.keys(item).filter(k => k !== '__rawValues');
-        // ค้นหาคอลัมน์ "รายละเอียดรายการรถที่ไม่สามารถตรวจสอบได้" (คอลัมน์ N)
         const descKey = headers.find(h => h.includes('รายละเอียดรายการรถที่ไม่สามารถตรวจสอบได้'));
         const desc = String(item[descKey] || '').trim();
 
         if (desc) {
             stats.grandTotal++;
-            // ตรวจสอบรหัส R ที่ขึ้นต้น
-            if (desc.startsWith('R1')) stats.R1++;
-            else if (desc.startsWith('R2')) stats.R2++;
-            else if (desc.startsWith('R3')) stats.R3++;
-            else if (desc.startsWith('R4')) stats.R4++;
-            else if (desc.startsWith('R5')) stats.R5++;
-            else if (desc.startsWith('R6')) {
-                if (desc.includes('ป้ายแดง')) stats.R6_RED++;
-                else if (desc.includes('เพื่อขาย')) stats.R6_SALE++;
-                else if (desc.includes('TC')) stats.R6_TC++;
-                else if (desc.includes('QC')) stats.R6_QC++;
-                else stats.R6_FORBID++;
+            
+            // --- ปรับปรุง Logic การนับยอดแยก R1 และ R10 ---
+            // ใช้ regex เพื่อดึงรหัส R ตัวแรกที่ตามด้วยตัวเลขออกมา (เช่น R1, R10)
+            const rMatch = desc.match(/^R(\d+)/);
+            if (rMatch) {
+                const rCode = "R" + rMatch[1]; // จะได้ "R1", "R2", ..., "R10"
+                
+                if (rCode === 'R1') stats.R1++;
+                else if (rCode === 'R10') stats.R10++; // แยกนับ R10 ออกมาต่างหาก
+                else if (rCode === 'R2') stats.R2++;
+                else if (rCode === 'R3') stats.R3++;
+                else if (rCode === 'R4') stats.R4++;
+                else if (rCode === 'R5') stats.R5++;
+                else if (rCode === 'R6') {
+                    if (desc.includes('ป้ายแดง')) stats.R6_RED++;
+                    else if (desc.includes('เพื่อขาย')) stats.R6_SALE++;
+                    else if (desc.includes('TC')) stats.R6_TC++;
+                    else if (desc.includes('QC')) stats.R6_QC++;
+                    else stats.R6_FORBID++;
+                }
+                else if (rCode === 'R7') stats.R7++;
+                else if (rCode === 'R8') stats.R8++;
+                else if (rCode === 'R9') stats.R9++;
             }
-            else if (desc.startsWith('R7')) stats.R7++;
-            else if (desc.startsWith('R8')) stats.R8++;
-            else if (desc.startsWith('R9')) stats.R9++;
-            else if (desc.startsWith('R10')) stats.R10++;
         }
     });
     return stats;
