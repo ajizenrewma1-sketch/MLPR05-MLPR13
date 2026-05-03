@@ -1118,29 +1118,46 @@ function renderReconcileButtons() {
         }
 
         function getValidationClass(field, manualVal, autoData) {
-    // 1. ถ้ายังไม่กรอกข้อมูล (ค่าว่าง) ให้เป็นสีพื้นปกติ (ไม่เขียวไม่แดง)
+    // 1. ถ้ายังไม่กรอกข้อมูล (ค่าว่าง) ให้เป็นสีพื้นปกติ
     if (manualVal === undefined || manualVal === null || manualVal === '') {
         return 'bg-white'; 
     }
 
-    let compareVal;
-    // 2. แยก Logic ระหว่างช่องปกติกับ Grand Total
-    if (field === 'grandTotal') {
-        // สำหรับ Grand Total เราส่งตัวเลขยอดรวมมาโดยตรง (autoTotal)
-        compareVal = autoData;
-    } else {
-        // สำหรับเลนปกติ ดึงค่าจาก Object sysData
-        compareVal = (autoData && autoData[field]) ? autoData[field] : 0;
+    // 2. ลบลูกน้ำและช่องว่างออกจากค่าที่กรอก
+    const cleanManualVal = String(manualVal).replace(/[,\s]/g, '');
+    const v1 = Number(cleanManualVal);
+
+    let compareVal = 0;
+
+    // 3. ตรวจสอบชนิดข้อมูลที่ส่งมาจากระบบ (autoData)
+    if (typeof autoData === 'number' || typeof autoData === 'string') {
+        compareVal = Number(String(autoData).replace(/[,\s]/g, ''));
+    } 
+    else if (autoData && typeof autoData === 'object') {
+        let current = autoData;
+        const keys = field.split('.');
+        
+        for (let k of keys) {
+            if (current && current[k] !== undefined) {
+                current = current[k];
+            } else {
+                current = 0;
+                break;
+            }
+        }
+        compareVal = Number(current);
     }
 
-    // 3. เปรียบเทียบโดยแปลงเป็นตัวเลขทั้งคู่ (กัน Error จาก String)
-    const v1 = Number(manualVal);
-    const v2 = Number(compareVal);
+    // 4. ปัดเศษทศนิยมให้เป็น 2 ตำแหน่งทั้งคู่ก่อนนำมาเปรียบเทียบ (แก้ปัญหาช่อง SLA)
+    // การใช้ .toFixed(2) จะทำให้ทศนิยมยาวๆ ถูกปัดเศษให้เหลือ 2 หลักเท่ากัน
+    const v1Fixed = Number(v1.toFixed(2));
+    const compareValFixed = Number(compareVal.toFixed(2));
 
-    if (v1 === v2) {
-        return 'bg-emerald-100 text-emerald-700 font-bold'; // กรอกถูก = เขียว
+    // 5. เทียบค่าและคืนค่าสี
+    if (v1Fixed === compareValFixed) {
+        return 'bg-emerald-100 text-emerald-700 font-bold'; // ตรงกัน = เขียว
     } else {
-        return 'bg-red-100 text-red-700 animate-pulse font-bold'; // กรอกผิด = แดงนิกะ
+        return 'bg-red-100 text-red-700 animate-pulse font-bold'; // ไม่ตรง = แดง
     }
 }
 
