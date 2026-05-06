@@ -153,6 +153,8 @@
     </style>
     </head>
 
+<body>
+
 	<header class="mb-8 flex flex-col items-center justify-center gap-6 bg-white/80 backdrop-blur-md p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(168,85,247,0.15)] border-4 border-white relative overflow-hidden">
     
     <div class="absolute top-0 left-0 w-32 h-32 bg-purple-200/20 rounded-full -ml-16 -mt-16 blur-3xl"></div>
@@ -256,7 +258,26 @@
                     <div id="r09-manual" class="flex-1 w-full xl:max-w-2xl"></div>
                 </div>
             </div>
-        </div> <div id="view-reconcile" class="hidden space-y-6">
+
+	   <!-- R11 Section -->
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-pink-600 pl-4 text-pink-700">เปรียบเทียบรายงาน R11</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-start">
+                    <div id="r11-auto" class="flex-1 w-full xl:max-w-[50%] overflow-x-auto"></div>
+                    <div id="r11-manual" class="flex-1 w-full xl:max-w-[50%] overflow-x-auto"></div>
+                </div>
+            </div>
+
+            <!-- R13 Section (เพิ่มใหม่) -->
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold border-l-4 border-purple-600 pl-4 text-purple-700">เปรียบเทียบรายงาน R13</h2>
+                <div class="flex flex-col xl:flex-row gap-6 items-start">
+                    <div id="r13-auto" class="flex-1 w-full xl:max-w-[50%] overflow-x-auto"></div>
+                    <div id="r13-manual" class="flex-1 w-full xl:max-w-[50%] overflow-x-auto"></div>
+                </div>
+            </div>
+        </div> 
+<div id="view-reconcile" class="hidden space-y-6">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                 <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
@@ -360,6 +381,67 @@ r07Keys.forEach(k => manualR07Data[k.id] = '');
         let manualR09Data = {};
         r09LanesList.forEach(lane => manualR09Data[lane] = '');
 
+	// --- R11 State ---
+        const initR11SubRow = () => ({
+            member: { thai: { C1:'', C2:'', C3:'', C4:'' }, foreign: { C1:'', C2:'', C3:'', C4:'' }, juridical: { C1:'', C2:'', C3:'', C4:'' }, totalTxn: '', totalAmount: '' },
+            nonMember: { vehicle: { C1:'', C2:'', C3:'', C4:'' }, totalTxn: '', totalAmount: '' },
+            grandTotalTxn: '', grandTotalAmount: ''
+        });
+
+        const initR11SummaryRow = () => ({ txn: '', inv: '', toll: '', fee2: '', fee10: '', fee200: '', totalAmount: '' });
+
+        const r11Config = [
+            { 
+                id: 'success', 
+                title: 'ตารางที่ 2 ชำระเงินสำเร็จ (รายการ)', 
+                channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
+            },
+            { id: 'fail', title: 'ตารางที่ 3 ชำระเงินไม่สำเร็จ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] }, 
+            { id: 'pending', title: 'ตารางที่ 4 รอดำเนินการชำระ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'Unspecified', 'Dispute', 'total'] },
+            { id: 'processing', title: 'ตารางที่ 5 ระหว่างดำเนินการชำระ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] }
+        ];
+
+        const r11ChannelLabels = {
+            'CounterService': 'Counter Service', 'MobileBanking': 'Mobile Banking', 'EasyPass': 'บัญชีบัตร Easy Pass',
+            'MPASS': 'บัญชีบัตร M-PASS', 'Saving': 'บัญชีออมทรัพย์', 'Credit': 'บัตรเครดิต/เดบิต',
+            'Unspecified': 'ยังไม่ระบุช่องทาง', 'Dispute': 'รายการโต้แย้งที่ไม่ได้ระบุช่องทาง', 'total': 'ยอดรวม'
+        };
+
+        let manualR11Data = {
+            summary: { member: initR11SummaryRow(), nonMember: initR11SummaryRow(), total: initR11SummaryRow() }
+        };
+
+        r11Config.forEach(t => {
+            manualR11Data[t.id] = {};
+            t.channels.forEach(c => { manualR11Data[t.id][c] = initR11SubRow(); });
+        });
+
+
+// R13 State
+        const createInitialR13Row = () => ({
+            manual: { items: '', amount: '' },
+            auto_trip: { items: '', credit: '', saving: '', mpass: '', easypass: '' },
+            auto_bill: { items: '', credit: '', saving: '' }
+        });
+
+        // อัปเดต manualR13Data State
+let manualR13Data = {
+    grandTotalItems: '',
+    grandTotalAmount: '',
+    rows: {
+        memberTotal: createInitialR13Row(),
+        memberThai: createInitialR13Row(),
+        memberForeign: createInitialR13Row(),
+        memberJuridical: createInitialR13Row(),
+        nonMember: createInitialR13Row(),
+        total: createInitialR13Row()
+    },
+    // เพิ่มฟิลด์ note สำหรับเก็บค่าช่อง "เว้นไว้กรอก"
+    sla1: { total: '', pass: '', fail: '', avg: '', note: '' }, 
+    sla2: { total: '', pass: '', fail: '', note: '' },         
+    sla3: { total: '', pass: '', note: '' }                    
+};
+
         // --- Core Functions ---
         function switchTab(tab) {
             // ควบคุมการแสดงผลหน้าจอ (Views)
@@ -388,13 +470,19 @@ r07Keys.forEach(k => manualR07Data[k.id] = '');
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    const content = e.target.result;
+                    let content = e.target.result;
+                    
+                    // 🌟 🌟 เพิ่มส่วนนี้: แอบแก้ปัญหาการเคาะบรรทัดใหม่ เฉพาะไฟล์ R11 🌟 🌟
+                    if (fileKey === 'R11') {
+                        // เปลี่ยน "ยอดรวม (Enter) (บาท)" ให้กลายเป็นบรรทัดเดียวกัน
+                        content = content.replace(/"ยอดรวม \r?\n\(บาท\)"/g, '"ยอดรวม (บาท)"');
+                    }
+                    
+                    // ใช้ parseCSV ตัวเดิมของระบบได้อย่างปลอดภัย ไม่กระทบใคร
                     const parsed = parseCSV(content);
                     filesData[fileKey] = { name: file.name, data: parsed };
                     renderUploadCards();
-		// --- เพิ่มบรรทัดนี้ลงไปครับ ---
             	    updateSummaryButtonState(); 
-            	// --------------------------
                     hideError();
                 } catch (err) {
                     showError(`เกิดข้อผิดพลาดในการอ่านไฟล์ ${fileKey}`);
@@ -798,8 +886,8 @@ function getR07Summary() {
         // --- 2. ฟังก์ชันหลักสำหรับปุ่ม 1.1 - 1.4 (ชนด้วย Transaction No) ---
         function compareTransactions(dataA, dataB, labelA, labelB) {
             const getTransList = (data) => {
-                const key = Object.keys(data[0] || {}).find(k => k.toLowerCase().includes('transaction no'));
-                return data.map(row => String(row[key] || '').trim()).filter(v => v !== '');
+                const key = Object.keys(data[0] || {}).find(k => k.toLowerCase().includes('transaction'));
+        	return data.map(row => String(row[key] || '').trim()).filter(v => v !== '');
             };
             const listA = getTransList(dataA);
             const listB = getTransList(dataB);
@@ -974,24 +1062,123 @@ function runReconcile(type) {
     } 
     else if (type === '05vs08') {
         if (!checkFiles(['R05', 'R08'], ['R05', 'R08'])) return;
-        result = compareTransactions(valid, filesData.R08.data, 'R05 ตรวจสอบได้', 'R08');
-        title = "ผลการชนข้อมูล 1.3 (R05 ตรวจสอบได้ vs R08)"; 
-        labelA = "R05 (-)"; labelB = "R08";
+        
+        // 🌟 กรอง R05 เพิ่มเติม: เอาเฉพาะคอลัมน์ "รถยกเว้น" ที่มีค่าเป็น "รถยกเว้น"
+        const exemptCol = Object.keys(valid[0] || {}).find(k => k.includes('รถยกเว้น'));
+        const filteredR05 = exemptCol 
+            ? valid.filter(row => String(row[exemptCol] || '').includes('รถยกเว้น'))
+            : valid;
+
+        result = compareTransactions(filteredR05, filesData.R08.data, 'R05 (เฉพาะรถยกเว้น)', 'R08');
+        title = "ผลการชนข้อมูล 1.3 (R05 ตรวจสอบได้ [เฉพาะรถยกเว้น] vs R08)"; 
+        labelA = "R05 (- และ รถยกเว้น)"; labelB = "R08";
     } 
     else if (type === '06vs08') {
         if (!checkFiles(['R06', 'R08'], ['R06', 'R08'])) return;
-        result = compareTransactions(filesData.R06.data, filesData.R08.data, 'R06', 'R08');
-        title = "ผลการชนข้อมูล 1.4 (R06 vs R08)"; 
-        labelA = "R06"; labelB = "R08";
+
+        // 🌟 กรอง R06: เอาเฉพาะคอลัมน์ "รถยกเว้น" ที่มีค่าเป็น "รถยกเว้น"
+        const r06Data = filesData.R06.data;
+        const exemptCol = Object.keys(r06Data[0] || {}).find(k => k.includes('รถยกเว้น'));
+        const filteredR06 = exemptCol 
+            ? r06Data.filter(row => String(row[exemptCol] || '').includes('รถยกเว้น'))
+            : r06Data;
+
+        result = compareTransactions(filteredR06, filesData.R08.data, 'R06 (เฉพาะรถยกเว้น)', 'R08');
+        title = "ผลการชนข้อมูล 1.4 (R06 [เฉพาะรถยกเว้น] vs R08)"; 
+        labelA = "R06 (รถยกเว้น)"; labelB = "R08";
     } 
     else if (type === 'dup') {
-        if (!checkFiles(['R05'], ['R05'])) return;
-        findR05Duplicates(); // เรียกฟังก์ชันเช็คซ้ำ 5 คอลัมน์
-        return;
-    }
+            if (!checkFiles(['R05'], ['R05'])) return;
+            findR05Duplicates(); // เรียกฟังก์ชันเช็คซ้ำ 5 คอลัมน์
+            return;
+        }
+        else if (type === '05vs13') {
+            if (!checkFiles(['R05', 'R13'], ['R05', 'R13'])) return;
 
-    if (result) showResultPopup(title, result, labelA, labelB);
-}
+            const r05Data = filesData.R05.data;
+            const r13Data = filesData.R13.data; // ดึงข้อมูล R13
+            const colR = Object.keys(r05Data[0] || {}).find(k => k.includes('ตรวจสอบได้ (R)'));
+            const txColR05 = Object.keys(r05Data[0] || {}).find(k => k.toLowerCase().includes('transaction'));
+
+            // ค้นหาคอลัมน์ ทะเบียน และ จังหวัด ของ R05
+            const plateColR05 = Object.keys(r05Data[0] || {}).find(k => k.includes('ทะเบียนรถ') || k === 'ทะเบียน');
+            const provColR05 = Object.keys(r05Data[0] || {}).find(k => k.includes('จังหวัด'));
+
+            // ค้นหาคอลัมน์ ทะเบียน และ จังหวัด ของ R13
+            const txColR13 = Object.keys(r13Data[0] || {}).find(k => k.toLowerCase().includes('transaction'));
+            const plateColR13 = Object.keys(r13Data[0] || {}).find(k => k.includes('ทะเบียนรถ') || k === 'ทะเบียน');
+            const provColR13 = Object.keys(r13Data[0] || {}).find(k => k.includes('จังหวัด'));
+
+            // 1. กรองเฉพาะข้อมูลที่ตรงตามเงื่อนไขเพื่อนำไปชนกับ R13
+            const filteredR05 = r05Data.filter(row => {
+                const val = String(row[colR] || '').trim();
+                if (val === '-') return true;
+                if (val.includes('R1')) return true;
+                if (val.includes('R5')) return true;
+                if (val.includes('R8')) return true;
+                if (val.includes('R9')) return true;
+                if (val.includes('R6') && (val.includes('เพื่อขาย') || val.includes('ป้ายแดง') || val.includes('TC') || val.includes('QC'))) return true;
+                return false;
+            });
+
+            // 2. ดึง Transaction No ของ R5 พร้อมแนบ ทะเบียน+จังหวัด
+            const r5Transactions = filteredR05
+                .filter(row => String(row[colR] || '').includes('R5'))
+                .map(row => {
+                    const tx = String(row[txColR05] || '').trim();
+                    const plate = String(row[plateColR05] || '').trim();
+                    const prov = String(row[provColR05] || '').trim();
+                    let detail = tx;
+                    if (plate || prov) detail += ` [${plate} ${prov}]`.trim();
+                    return { tx: tx, display: detail }; // ส่งเป็น Object ไปใช้ใน UI
+                })
+                .filter(v => v.tx !== '');
+
+            // 3. นำข้อมูลที่ผ่านการกรองแล้ว ไปชนกับ R13 ตามปกติ
+            const resultR13 = compareTransactions(filteredR05, r13Data, 'R05 (กรองเงื่อนไข)', 'R13');
+
+            // --- ส่วนที่เพิ่ม: แนบ ทะเบียน และ จังหวัด ให้กับรายการที่ไม่พบ ---
+            resultR13.aNotInB_Details = resultR13.aNotInB.map(tx => {
+                const row = filteredR05.find(r => String(r[txColR05] || '').trim() === tx);
+                if (row) {
+                    const plate = String(row[plateColR05] || '').trim();
+                    const prov = String(row[provColR05] || '').trim();
+                    if (plate || prov) return `${tx} [${plate} ${prov}]`.trim();
+                }
+                return tx;
+            });
+
+            resultR13.bNotInA_Details = resultR13.bNotInA.map(tx => {
+                const row = r13Data.find(r => String(r[txColR13] || '').trim() === tx);
+                if (row) {
+                    const plate = String(row[plateColR13] || '').trim();
+                    const prov = String(row[provColR13] || '').trim();
+                    if (plate || prov) return `${tx} [${plate} ${prov}]`.trim();
+                }
+                return tx;
+            });
+
+            // 4. เรียกใช้ Popup แบบใหม่
+            showR05vsR13Popup("ผลการชนข้อมูล 1.6 (R05 ออกบิลได้ vs R13)", resultR13, r5Transactions);
+            return; // ให้ออกจากฟังก์ชันตรงนี้เลย
+        }
+	else if (type === '11vs13') {
+        if (!checkFiles(['R11', 'R13'], ['R11', 'R13'])) return;
+        
+        // ดึงข้อมูล Transaction จาก R11 และ R13
+        const r11Data = filesData.R11.data;
+        const r13Data = filesData.R13.data;
+
+        result = compareTransactions(r11Data, r13Data, 'R11', 'R13');
+        title = "ผลการชนข้อมูล 1.7 (R11 vs R13)"; 
+        labelA = "R11 (Transaction No.)"; 
+        labelB = "R13 (Transaction)";
+    }
+    // 🌟 เพิ่มโค้ดส่วนนี้: สั่งให้แสดงผล Popup สำหรับปุ่ม 1.1 - 1.4
+    if (result) {
+        showResultPopup(title, result, labelA, labelB);
+    }
+} 
 
 // ฟังก์ชันสำหรับสร้างปุ่ม Reconcile ในหน้า View
 function renderReconcileButtons() {
@@ -999,11 +1186,17 @@ function renderReconcileButtons() {
     if (!container) return;
 
     const buttons = [
-        { id: '05vs06', title: '1.1 R05 ตรวจสอบได้ กับ R06', desc: 'เทียบ Transaction No.', icon: 'file-check', color: 'indigo' },
-        { id: '05vs07', title: '1.2 R05 ตรวจสอบไม่ได้ กับ R07', desc: 'เทียบ Transaction No.', icon: 'file-warning', color: 'amber' },
-        { id: '05vs08', title: '1.3 R05 ตรวจสอบได้ กับ R08', desc: 'เทียบ Transaction No.', icon: 'file-text', color: 'emerald' },
-        { id: '06vs08', title: '1.4 R06 กับ R08', desc: 'เทียบ Transaction No.', icon: 'files', color: 'blue' },
-        { id: 'dup', title: '1.5 หารายการซ้ำ (R05)', desc: 'เช็ค ทะเบียน/จังหวัด/วัน/เวลา/ด่าน', icon: 'copy', color: 'rose' }
+        { id: '05vs06', title: '1.1 R05 ตรวจสอบได้ กับ R06', desc: 'เทียบ Transaction No. (R05 เฉพาะเครื่องหมาย "-")', icon: 'file-check', color: 'indigo' },
+        { id: '05vs07', title: '1.2 R05 ตรวจสอบไม่ได้ กับ R07', desc: 'เทียบ Transaction No. (R05 ที่ไม่ใช่ "-")', icon: 'file-warning', color: 'amber' },
+        { id: '05vs08', title: '1.3 R05 ตรวจสอบได้ กับ R08', desc: 'เทียบ Transaction No. (R05 เฉพาะ "-" และกรอง "รถยกเว้น")', icon: 'file-text', color: 'emerald' },
+        { id: '06vs08', title: '1.4 R06 กับ R08', desc: 'เทียบ Transaction No. ระหว่าง R06 (เฉพาะ "รถยกเว้น") และ R08', icon: 'files', color: 'blue' },
+        { id: 'dup', title: '1.5 หารายการซ้ำ (R05)', desc: 'ตรวจสอบข้อมูลซ้ำจากคอลัมน์ G,H,J,K,M', icon: 'copy', color: 'rose' },
+        
+        // 👇 สังเกตว่าบรรทัด 1.6 ด้านล่างนี้ มีลูกน้ำ (,) ต่อท้ายแล้ว
+        { id: '05vs13', title: '1.6 R05 ออกบิลได้ กับ R13', desc: 'กรองข้อมูล (-, R1, R5, R6บางส่วน, R8, R9) เทียบ R13', icon: 'search', color: 'purple' },
+        
+        // 🌟 ปุ่ม 1.7 เพิ่มใหม่
+        { id: '11vs13', title: '1.7 R11 vs R13', desc: 'ชนข้อมูล Transaction No.', icon: 'arrow-left-right', color: 'orange' }
     ];
 
     container.innerHTML = buttons.map(btn => `
@@ -1024,38 +1217,20 @@ function renderReconcileButtons() {
     if (window.lucide) lucide.createIcons();
 }
 
-function renderReconcileButtons() {
-    const container = document.getElementById('reconcile-buttons-container');
-    if (!container) return;
+        // --- 5. ฟังก์ชัน Popup ---
+        
+        // 🌟 ตัวแปรกลางสำหรับเก็บรายการที่ไม่พบ เพื่อส่งให้ Popup รายละเอียด
+        let currentMissingData = null;
 
-    const buttons = [
-        { id: '05vs06', title: '1.1 R05 ตรวจสอบได้ กับ R06', desc: 'เทียบ Transaction No. (R05 เฉพาะเครื่องหมาย "-")', icon: 'file-check', color: 'indigo' },
-        { id: '05vs07', title: '1.2 R05 ตรวจสอบไม่ได้ กับ R07', desc: 'เทียบ Transaction No. (R05 ที่ไม่ใช่ "-")', icon: 'file-warning', color: 'amber' },
-        { id: '05vs08', title: '1.3 R05 ตรวจสอบได้ กับ R08', desc: 'เทียบ Transaction No. (R05 เฉพาะเครื่องหมาย "-")', icon: 'file-text', color: 'emerald' },
-        { id: '06vs08', title: '1.4 R06 กับ R08', desc: 'เทียบ Transaction No. ระหว่าง R06 และ R08', icon: 'files', color: 'blue' },
-        { id: 'dup', title: '1.5 หารายการซ้ำ (R05)', desc: 'ตรวจสอบข้อมูลซ้ำจากคอลัมน์ G,H,J,K,M', icon: 'copy', color: 'rose' }
-    ];
-
-    container.innerHTML = buttons.map(btn => `
-        <button onclick="runReconcile('${btn.id}')" 
-                class="p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-${btn.color}-500 hover:shadow-md transition-all text-left group">
-            <div class="flex items-center gap-4 mb-3">
-                <div class="p-3 bg-${btn.color}-50 text-${btn.color}-600 rounded-xl group-hover:bg-${btn.color}-600 group-hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800 text-sm group-hover:text-${btn.color}-600 transition-colors">${btn.title}</h3>
-                    <p class="text-[10px] text-slate-400 mt-0.5">${btn.desc}</p>
-                </div>
-            </div>
-        </button>
-    `).join('');
-}
-
-        // --- 5. ฟังก์ชัน Popup (วางต่อท้ายไปเลยครับ) ---
         function showResultPopup(title, res, labelA, labelB) {
+            // เก็บข้อมูลไว้เผื่อผู้ใช้กดปุ่มดูรายละเอียด
+            currentMissingData = {
+                labelA: labelA,
+                labelB: labelB,
+                listA: res.aNotInB || [],
+                listB: res.bNotInA || []
+            };
+
             const html = `
                 <div id="modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
                     <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -1063,7 +1238,7 @@ function renderReconcileButtons() {
                             <h3 class="font-bold text-xl text-slate-800">${title}</h3>
                             <button onclick="document.getElementById('modal').remove()" class="text-slate-400 hover:text-slate-600 text-2xl">✕</button>
                         </div>
-                        <div class="p-6 overflow-y-auto space-y-6">
+                        <div class="p-6 overflow-y-auto space-y-6 flex-grow">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
                                     <div class="font-bold text-blue-800 underline mb-2">${labelA} (รวม ${res.countA})</div>
@@ -1090,6 +1265,13 @@ function renderReconcileButtons() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <!-- 🌟 ปุ่มสำหรับดูรายละเอียดรายการที่ไม่พบ -->
+                        <div class="p-4 border-t bg-slate-50 rounded-b-2xl flex justify-center">
+                            <button onclick="showMissingItemsPopup()" class="px-6 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                                ดูรายการที่ไม่พบทั้งหมด (แบบละเอียด)
+                            </button>
                         </div>
                     </div>
                 </div>`;
@@ -1160,14 +1342,185 @@ function renderReconcileButtons() {
         return 'bg-red-100 text-red-700 animate-pulse font-bold'; // ไม่ตรง = แดง
     }
 }
+// --- ฟังก์ชัน Popup สำหรับ R05 vs R13 (มีไฮไลต์พิเศษสำหรับ R5) ---
+// --- ฟังก์ชัน Popup สำหรับ R05 vs R13 (อัปเดต UI ให้แสดงแนวตั้งและมีทะเบียนรถ) ---
+function showR05vsR13Popup(title, res, r5List) {
+    const aInBSet = new Set(res.aInB);
+    
+    // 🌟 วาดส่วนแสดงผลพิเศษสำหรับ R5 แบบ List แนวตั้งตามภาพแนบ
+    const r5Html = r5List.map((item, i) => {
+        const isFound = aInBSet.has(item.tx);
+        const color = isFound ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'text-rose-700 bg-rose-50 border-rose-200 hover:bg-rose-100';
+        const icon = isFound ? '✓ เจอใน R13' : '❌ ไม่เจอใน R13';
+        return `
+            <div class="p-3 border rounded-xl text-sm font-mono transition-colors flex gap-3 shadow-sm ${color} justify-between items-center">
+                <div class="flex gap-3 items-center">
+                    <span class="text-slate-400 w-6 text-right font-bold">${i + 1}.</span>
+                    <span class="font-bold">${item.display}</span>
+                </div>
+                <span class="text-xs font-bold px-2 py-1 rounded bg-white/60 shadow-sm">${icon}</span>
+            </div>
+        `;
+    }).join('');
 
+    // เก็บข้อมูลลง window ชั่วคราวเพื่อส่งให้ปุ่ม "ดูรายละเอียด"
+    window.tempMissingDataR13 = { 
+        labelA: 'R05 (ที่ผ่านเงื่อนไข)', 
+        labelB: 'R13', 
+        listA: res.aNotInB_Details, 
+        listB: res.bNotInA_Details 
+    };
+
+    const html = `
+        <div id="modal-r13" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div class="p-6 border-b flex justify-between items-center bg-purple-50 rounded-t-3xl">
+                    <h3 class="font-black text-xl text-purple-800 flex items-center gap-2">
+                        <i data-lucide="search" class="w-6 h-6"></i> ${title}
+                    </h3>
+                    <button onclick="document.getElementById('modal-r13').remove()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">✕</button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto space-y-6 bg-slate-50">
+                    <!-- 1. สรุปภาพรวม -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm text-center">
+                            <div class="font-bold text-slate-500 mb-2 uppercase text-[11px] tracking-widest">R05 ที่ผ่านเงื่อนไข (รวม ${res.countA.toLocaleString()})</div>
+                            <div class="text-sm font-medium">เจอใน R13: <span class="text-emerald-600 font-black text-lg">${res.aInB.length.toLocaleString()}</span></div>
+                            <div class="text-sm font-medium">ไม่เจอใน R13: <span class="text-rose-600 font-black text-lg">${res.aNotInB.length.toLocaleString()}</span></div>
+                        </div>
+                        <div class="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm text-center">
+                            <div class="font-bold text-slate-500 mb-2 uppercase text-[11px] tracking-widest">R13 (รวม ${res.countB.toLocaleString()})</div>
+                            <div class="text-sm font-medium">เจอใน R05: <span class="text-emerald-600 font-black text-lg">${res.bInA.length.toLocaleString()}</span></div>
+                            <div class="text-sm font-medium">ไม่เจอใน R05: <span class="text-rose-600 font-black text-lg">${res.bNotInA.length.toLocaleString()}</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 2. R5 Section (อัปเดตเป็นแนวตั้งตามภาพแนบ) -->
+                    <div class="space-y-3 bg-white p-5 rounded-2xl border-2 border-emerald-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                        <h4 class="text-sm font-black text-emerald-800 flex items-center gap-2 relative z-10">
+                            🌟 ตรวจสอบข้อมูล R5 (ป้ายทะเบียนปรับแต่ง)
+                            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">รวม ${r5List.length} คัน</span>
+                        </h4>
+                        <p class="text-[10px] text-slate-500 mb-2 relative z-10">* ไฮไลต์สีเขียวคือรายการ R5 ที่ค้นเจอในฐานข้อมูล R13</p>
+                        
+                        <!-- 🌟 เปลี่ยนจาก Grid หลายคอลัมน์ เป็น 1 คอลัมน์ (แนวตั้ง) -->
+                        <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto custom-scrollbar relative z-10 p-1">
+                            ${r5Html || '<div class="text-sm text-slate-400 italic py-4 text-center">ไม่พบรายการ R5 ในข้อมูลชุดนี้</div>'}
+                        </div>
+                    </div>
+
+                    <!-- 3. รายการที่ไม่พบในแต่ละไฟล์ (แสดงตัวอย่างย่อๆ) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2 bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
+                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i> รายชื่อที่ไม่พบใน R13
+                            </h4>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] font-mono max-h-48 overflow-y-auto custom-scrollbar text-slate-600 space-y-1">
+                                ${res.aNotInB_Details.length > 0 ? res.aNotInB_Details.map(x => `<div class="border-b border-slate-200 pb-1">${x}</div>`).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
+                            </div>
+                        </div>
+                        <div class="space-y-2 bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
+                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i> รายชื่อที่ไม่พบใน R05 (เงื่อนไขที่กรอง)
+                            </h4>
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] font-mono max-h-48 overflow-y-auto custom-scrollbar text-slate-600 space-y-1">
+                                ${res.bNotInA_Details.length > 0 ? res.bNotInA_Details.map(x => `<div class="border-b border-slate-200 pb-1">${x}</div>`).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 🌟 ปุ่มสำหรับดูรายละเอียดรายการที่ไม่พบ -->
+                <div class="p-4 border-t bg-purple-50 rounded-b-3xl flex justify-center">
+                    <button onclick="currentMissingData = window.tempMissingDataR13; showMissingItemsPopup();" class="px-6 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        ดูรายการที่ไม่พบทั้งหมด (แบบละเอียด)
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.lucide) lucide.createIcons();
+}
+
+// --- 🌟 ฟังก์ชัน Popup สำหรับแสดงรายการที่ไม่พบแบบจัดเรียงแนวตั้ง 🌟 ---
+function showMissingItemsPopup() {
+    if (!currentMissingData) return;
+    const data = currentMissingData;
+    
+    // ตั้งค่า z-[60] เพื่อให้ซ้อนทับ Popup อันเดิม
+    const html = `
+        <div id="modal-missing" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
+            <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div class="p-5 border-b flex justify-between items-center bg-rose-50 rounded-t-3xl">
+                    <h3 class="font-black text-xl text-rose-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                        รายการที่หาไม่พบ (รายละเอียด)
+                    </h3>
+                    <button onclick="document.getElementById('modal-missing').remove()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">✕</button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto bg-slate-50 flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- ตารางฝั่งซ้าย (มีใน A แต่ไม่พบใน B) -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                        <div class="mb-4 border-b pb-3">
+                            <h4 class="font-bold text-rose-600 text-sm">ไม่พบใน : <span class="text-slate-800">${data.labelB}</span></h4>
+                            <div class="text-xs text-slate-500 mt-1">(มีใน ${data.labelA} จำนวน ${data.listA.length.toLocaleString()} รายการ)</div>
+                        </div>
+                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar pr-2 space-y-1.5">
+                            ${data.listA.length > 0 ?
+                                data.listA.map((item, i) => `
+                                    <div class="p-2 border rounded-lg text-sm font-mono text-slate-700 bg-slate-50 hover:bg-rose-50 hover:border-rose-200 transition-colors flex gap-3">
+                                        <span class="text-slate-400 w-6 text-right">${i+1}.</span>
+                                        <span class="font-bold">${item}</span>
+                                    </div>
+                                `).join('')
+                                : '<div class="text-center text-emerald-500 font-bold py-10 bg-emerald-50 rounded-xl">ไม่มีรายการตกหล่น (ครบถ้วน)</div>'
+                            }
+                        </div>
+                    </div>
+
+                    <!-- ตารางฝั่งขวา (มีใน B แต่ไม่พบใน A) -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+                        <div class="mb-4 border-b pb-3">
+                            <h4 class="font-bold text-rose-600 text-sm">ไม่พบใน : <span class="text-slate-800">${data.labelA}</span></h4>
+                            <div class="text-xs text-slate-500 mt-1">(มีใน ${data.labelB} จำนวน ${data.listB.length.toLocaleString()} รายการ)</div>
+                        </div>
+                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar pr-2 space-y-1.5">
+                            ${data.listB.length > 0 ?
+                                data.listB.map((item, i) => `
+                                    <div class="p-2 border rounded-lg text-sm font-mono text-slate-700 bg-slate-50 hover:bg-rose-50 hover:border-rose-200 transition-colors flex gap-3">
+                                        <span class="text-slate-400 w-6 text-right">${i+1}.</span>
+                                        <span class="font-bold">${item}</span>
+                                    </div>
+                                `).join('')
+                                : '<div class="text-center text-emerald-500 font-bold py-10 bg-emerald-50 rounded-xl">ไม่มีรายการตกหล่น (ครบถ้วน)</div>'
+                            }
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t bg-white rounded-b-3xl flex justify-center">
+                    <button onclick="document.getElementById('modal-missing').remove()" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all hover:scale-105 active:scale-95 shadow-md">
+                        ปิดหน้าต่างนี้ (กลับไปหน้าสรุป)
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
         function renderReports() {
             const r05Sys = getR05Summary();
             const r06Sys = getR06Summary();
 	    const r07Sys = getR07Summary();
             const r08Sys = getR08Summary();
             const r09Sys = getR09Summary();
-            
+	    const r11Sys = getR11Summary();
+            const r13Sys = getR13Summary();
+
             renderR05('r05-auto', r05Sys, false);
             renderR05('r05-manual', manualData, true, r05Sys);
             
@@ -1183,6 +1536,12 @@ function renderReconcileButtons() {
 
             renderR09('r09-auto', r09Sys, false);
             renderR09('r09-manual', manualR09Data, true, r09Sys);
+
+	    renderR11('r11-auto', r11Sys, false);
+	    renderR11('r11-manual', manualR11Data, true, r11Sys);
+
+	    renderR13('r13-auto', r13Sys, false);
+            renderR13('r13-manual', manualR13Data, true, r13Sys);
         }
 
         function renderR05(targetId, data, isManual, sysData = null) {
@@ -1543,6 +1902,571 @@ function renderR07(targetId, data, isManual, sysData = null) {
     container.innerHTML = html;
 }
 
+function getR11Summary() {
+    if (!filesData.R11) return null;
+    
+    const data = filesData.R11.data;
+
+    const initZeroSubRow = () => ({
+        member: { thai: { C1:0, C2:0, C3:0, C4:0 }, foreign: { C1:0, C2:0, C3:0, C4:0 }, juridical: { C1:0, C2:0, C3:0, C4:0 }, totalTxn: 0, totalAmount: 0 },
+        nonMember: { vehicle: { C1:0, C2:0, C3:0, C4:0 }, totalTxn: 0, totalAmount: 0 },
+        grandTotalTxn: 0, grandTotalAmount: 0
+    });
+    const initZeroSummaryRow = () => ({ txn: 0, inv: 0, toll: 0, fee2: 0, fee10: 0, fee200: 0, totalAmount: 0 });
+
+    let stats = { summary: { member: initZeroSummaryRow(), nonMember: initZeroSummaryRow(), total: initZeroSummaryRow() } };
+    
+    r11Config.forEach(t => {
+        stats[t.id] = {};
+        t.channels.forEach(c => { stats[t.id][c] = initZeroSubRow(); });
+    });
+
+    const memberInvoices = new Set();
+    const nonMemberInvoices = new Set();
+
+    const statusMap = {
+        'ชำระเงินสำเร็จ': 'success',
+        'ชำระเงินไม่สำเร็จ': 'fail',
+        'รอดำเนินการชำระ': 'pending',
+        'ระหว่างดำเนินการชำระ': 'processing'
+    };
+
+    data.forEach(row => {
+        const headers = Object.keys(row).filter(k => k !== '__rawValues');
+        
+        const colMemberType = headers.find(h => h.includes('ประเภทสมาชิก'));
+        const colInvoice = headers.find(h => h.includes('เลขที่ใบแจ้งหนี้'));
+        const colToll = headers.find(h => h.includes('ค่าผ่านทาง')); 
+        const colFee2 = headers.find(h => h.includes('ค่าเสียหาย 2 เท่า'));
+        const colFee10 = headers.find(h => h.includes('ค่าปรับ 10 เท่า'));
+        const colFee200 = headers.find(h => h.includes('ค่าปรับ 200 บาท'));
+        
+        const colPayStatus = headers.find(h => h.includes('สถานะ การชำระ'));
+        const colUserType = headers.find(h => h.includes('ประเภทผู้ใช้บริการ'));
+        const colVehicleType = headers.find(h => h === 'ประเภทรถ' || h.includes('ประเภทรถ'));
+        const colPayChannel = headers.find(h => (h.includes('ช่องทางการชำระเงิน') || h.includes('ช่องทาง ชำระเงิน')) && !h.includes('อ้างอิง'));
+        
+        // 🌟 ดึงคอลัมน์ "ยอดรวม (บาท)" มาใช้เป็นหลักสำหรับคำนวณเงินในตาราง 2-5 🌟
+        const colTotalBill = headers.find(h => h === 'ยอดรวม (บาท)' || (h.includes('ยอดรวม') && !h.includes('ชำระ')));
+
+        if (!colMemberType) return;
+
+        const memberType = String(row[colMemberType] || '').trim();
+        const invoiceNo = String(row[colInvoice] || '').trim();
+        const parseAmt = (val) => parseFloat(String(val).replace(/[^0-9.-]+/g, "")) || 0;
+
+        // [ตารางที่ 1] Summary
+        const toll = parseAmt(row[colToll]);
+        const fee2 = parseAmt(row[colFee2]);
+        const fee10 = parseAmt(row[colFee10]);
+        const fee200 = parseAmt(row[colFee200]);
+
+        if (memberType === 'สมาชิก') {
+            stats.summary.member.txn += 1;
+            if (invoiceNo && invoiceNo !== '-' && invoiceNo.toLowerCase() !== 'null') memberInvoices.add(invoiceNo);
+            stats.summary.member.toll += toll; stats.summary.member.fee2 += fee2; stats.summary.member.fee10 += fee10; stats.summary.member.fee200 += fee200;
+        } else if (memberType === 'ไม่ใช่สมาชิก') {
+            stats.summary.nonMember.txn += 1;
+            if (invoiceNo && invoiceNo !== '-' && invoiceNo.toLowerCase() !== 'null') nonMemberInvoices.add(invoiceNo);
+            stats.summary.nonMember.toll += toll; stats.summary.nonMember.fee2 += fee2; stats.summary.nonMember.fee10 += fee10; stats.summary.nonMember.fee200 += fee200;
+        }
+
+        // [ตารางที่ 2-5]
+        const payStatus = String(row[colPayStatus] || '').trim();
+        const tableId = statusMap[payStatus];
+        
+        if (tableId) {
+            const userType = String(row[colUserType] || '').trim();
+            const vehicleType = String(row[colVehicleType] || '').trim().toUpperCase();
+            const payChannel = String(row[colPayChannel] || '').trim();
+
+            // 🌟 นำค่าจากคอลัมน์ "ยอดรวม (บาท)" มาเก็บใส่ตัวแปร money ทันที
+            const money = parseAmt(row[colTotalBill]);
+
+            const getChannelKey = (raw) => {
+                const s = raw.toLowerCase().replace(/\s|-/g, ''); 
+                if (s.includes('counterservice')) return 'CounterService';
+                if (s.includes('exception')) return 'EXCEPTION'; // เพิ่มใหม่
+                if (s.includes('mobilebanking')) return 'MobileBanking';
+                if (s.includes('pointpro')) return 'POINTPRO'; // เพิ่มใหม่
+                if (s.includes('easypass')) return 'EasyPass';
+                if (s.includes('mpass')) return 'MPASS';
+                if (s.includes('ออมทรัพย์') || s.includes('saving')) return 'Saving';
+                if (s.includes('เครดิต') || s.includes('เดบิต') || s.includes('credit')) return 'Credit';
+                if (s.includes('ยังไม่ระบุ') || s.includes('unspecified')) return 'Unspecified';
+                if (s.includes('dispute')) return 'Dispute';
+                return null;
+            };
+
+            const matchedChannel = getChannelKey(payChannel);
+            const currentConfig = r11Config.find(c => c.id === tableId);
+
+            if (matchedChannel && currentConfig && currentConfig.channels.includes(matchedChannel)) {
+                const targetRow = stats[tableId][matchedChannel];
+                const isValidC = ['C1', 'C2', 'C3', 'C4'].includes(vehicleType);
+
+                if (memberType === 'สมาชิก') {
+                    let subCat = 'thai';
+                    if (userType.includes('นิติบุคคล')) subCat = 'juridical';
+                    else if (userType.includes('ต่างชาติ') || userType.toLowerCase().includes('foreign')) subCat = 'foreign';
+                    
+                    if (isValidC) targetRow.member[subCat][vehicleType] += 1;
+                    targetRow.member.totalTxn += 1;
+                    targetRow.member.totalAmount += money; // บันทึกยอดเงินรวม
+                } else if (memberType === 'ไม่ใช่สมาชิก') {
+                    if (isValidC) targetRow.nonMember.vehicle[vehicleType] += 1;
+                    
+                    targetRow.nonMember.totalTxn += 1;
+                    targetRow.nonMember.totalAmount += money; // บันทึกยอดเงินรวม
+                }
+                
+                targetRow.grandTotalTxn += 1;
+                targetRow.grandTotalAmount += money; // บันทึกยอดเงินรวมทั้งหมด
+            }
+        }
+    });
+
+    // คำนวณยอดรวมแนวตั้ง
+    r11Config.forEach(t => {
+        const totalRow = stats[t.id]['total'];
+        if (!totalRow) return;
+        t.channels.forEach(ch => {
+            if (ch === 'total') return;
+            const row = stats[t.id][ch];
+            ['thai', 'foreign', 'juridical'].forEach(sub => {
+                ['C1', 'C2', 'C3', 'C4'].forEach(c => { totalRow.member[sub][c] += row.member[sub][c]; });
+            });
+            totalRow.member.totalTxn += row.member.totalTxn;
+            totalRow.member.totalAmount += row.member.totalAmount;
+            
+            ['C1', 'C2', 'C3', 'C4'].forEach(c => { totalRow.nonMember.vehicle[c] += row.nonMember.vehicle[c]; });
+            totalRow.nonMember.totalTxn += row.nonMember.totalTxn;
+            totalRow.nonMember.totalAmount += row.nonMember.totalAmount;
+            
+            totalRow.grandTotalTxn += row.grandTotalTxn;
+            totalRow.grandTotalAmount += row.grandTotalAmount;
+        });
+    });
+
+    // สรุปยอดตารางที่ 1
+    stats.summary.member.inv = memberInvoices.size;
+    stats.summary.nonMember.inv = nonMemberInvoices.size;
+    stats.summary.member.totalAmount = stats.summary.member.toll + stats.summary.member.fee2 + stats.summary.member.fee10 + stats.summary.member.fee200;
+    stats.summary.nonMember.totalAmount = stats.summary.nonMember.toll + stats.summary.nonMember.fee2 + stats.summary.nonMember.fee10 + stats.summary.nonMember.fee200;
+    
+    const s = stats.summary;
+    s.total.txn = s.member.txn + s.nonMember.txn;
+    s.total.inv = s.member.inv + s.nonMember.inv;
+    s.total.toll = s.member.toll + s.nonMember.toll;
+    s.total.fee2 = s.member.fee2 + s.nonMember.fee2;
+    s.total.fee10 = s.member.fee10 + s.nonMember.fee10;
+    s.total.fee200 = s.member.fee200 + s.nonMember.fee200;
+    s.total.totalAmount = s.member.totalAmount + s.nonMember.totalAmount;
+
+    return stats;
+}
+
+function renderR11(targetId, data, isManual, sysData = null) {
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+    if (!isManual && !data) {
+        targetEl.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[400px]">กรุณาอัปโหลดไฟล์ R11</div>`;
+        return;
+    }
+
+// 🌟 วางตรงนี้ครับ: อัปเดตชื่อแถวให้รองรับ M-PASS 🌟
+    const channelLabels = {
+        'CounterService': 'Counter Service',
+        'EXCEPTION': 'EXCEPTION', // เพิ่มใหม่
+        'MobileBanking': 'Mobile Banking',
+        'POINTPRO': 'POINTPRO', // เพิ่มใหม่
+        'EasyPass': 'บัญชีบัตร Easy Pass',
+        'MPASS': 'บัญชีบัตร M-PASS',
+        'Saving': 'บัญชีออมทรัพย์',
+        'Credit': 'บัตรเครดิต/เดบิต',
+        'Unspecified': 'ยังไม่ระบุช่องทาง',
+        'Dispute': 'Dispute',
+        'total': 'ยอดรวม'
+    };
+
+    let html = `
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+        <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-pink-600 text-white'} flex justify-between items-center h-[60px]">
+            <h2 class="font-bold flex items-center gap-2">${isManual ? 'ตารางเปรียบเทียบ R11 (Manual Entry)' : 'สรุปผล R11 จากระบบ (Auto)'}</h2>
+            ${isManual ? `<button onclick="processSingleReport('r11')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>ประมวลผล R11</button>` : ''}
+        </div>
+        <div class="p-4 space-y-6 max-h-[700px] overflow-y-auto custom-scrollbar bg-slate-50">
+    `;
+
+    // Render Table 1 (Summary)
+    html += `
+        <div class="overflow-x-auto custom-scrollbar border border-slate-300 rounded-lg shadow-sm bg-white">
+            <table class="min-w-full text-[11px] text-center border-collapse">
+                <thead class="bg-slate-200/80 font-bold">
+                    <tr><th class="border p-2"></th><th class="border p-2">จำนวนรายการ</th><th class="border p-2">จำนวนใบแจ้งหนี้</th><th class="border p-2">ค่าผ่านทาง</th><th class="border p-2">ค่าเสียหาย 2 เท่า</th><th class="border p-2">ค่าปรับ 10 เท่า</th><th class="border p-2">ค่าปรับ 200 บาท</th><th class="border p-2">ยอดเงินใบแจ้งหนี้รวม</th></tr>
+                </thead>
+                <tbody>
+                    ${['member', 'nonMember', 'total'].map(k => {
+                        let lbl = k === 'member' ? 'สมาชิก' : k === 'nonMember' ? 'ไม่ใช่สมาชิก' : 'รวม';
+                        let rowData = data.summary[k];
+                        const rInp = (path, val, isAmt) => isManual ? `<td class="border ${getValidationClass(`summary.${k}.${path}`, val, sysData)}"><input type="text" value="${val}" onchange="updateVal('r11','summary.${k}.${path}',this.value)" class="w-full text-center bg-transparent border-0 placeholder-slate-300" placeholder="${isAmt?'0.00':'0'}"></td>` : `<td class="border p-1">${isAmt ? Number(val||0).toLocaleString(undefined,{minimumFractionDigits:2}) : (val||0).toLocaleString()}</td>`;
+                        return `<tr class="${k === 'total' ? 'bg-slate-100 font-bold' : 'hover:bg-slate-50'}"><td class="border p-2 font-bold bg-slate-100/50">${lbl}</td>${rInp('txn', rowData.txn, false)}${rInp('inv', rowData.inv, false)}${rInp('toll', rowData.toll, true)}${rInp('fee2', rowData.fee2, true)}${rInp('fee10', rowData.fee10, true)}${rInp('fee200', rowData.fee200, true)}${rInp('totalAmount', rowData.totalAmount, true)}</tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+
+    // Render Table 2-5 (Channels)
+    r11Config.forEach(cfg => {
+        html += `
+        <div class="overflow-x-auto custom-scrollbar border border-slate-300 rounded-lg shadow-sm bg-white">
+            <table class="w-max text-[10px] text-center border-collapse">
+                <thead class="bg-slate-200/80 font-bold">
+                    <tr><th colspan="23" class="border p-2 text-sm text-slate-800">${cfg.title}</th></tr>
+                    <tr><th rowspan="4" class="border p-2 min-w-[150px] bg-slate-100">ช่องทางการชำระเงิน</th><th colspan="14" class="border p-1 bg-indigo-50 text-indigo-800">สมาชิก</th><th colspan="6" class="border p-1 bg-emerald-50 text-emerald-800">ไม่ใช่สมาชิก</th><th rowspan="4" class="border p-2 w-[80px] bg-slate-100">จำนวนรายการทั้งหมด</th><th rowspan="4" class="border p-2 w-[100px] bg-slate-100">ยอดเงินรวมทั้งหมด (บาท)</th></tr>
+                    <tr><th colspan="4" class="border p-1">บุคคลไทย</th><th colspan="4" class="border p-1">บุคคลต่างชาติ</th><th colspan="4" class="border p-1">นิติบุคคล</th><th rowspan="3" class="border p-1 w-[60px]">จำนวนรายการ</th><th rowspan="3" class="border p-1 w-[80px]">ยอดเงินรวม (บาท)</th><th colspan="4" class="border p-1">ประเภทรถ (รายการ)</th><th rowspan="3" class="border p-1 w-[60px]">จำนวนรายการ</th><th rowspan="3" class="border p-1 w-[80px]">ยอดเงินรวม (บาท)</th></tr>
+                    <tr><th colspan="12" class="border p-1">ประเภทรถ (รายการ)</th><th colspan="4" class="border p-1"></th></tr>
+                    <tr>${Array(4).fill(['C1','C2','C3','C4']).flat().map(c => `<th class="border p-1 w-[40px]">${c}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                    ${cfg.channels.map(ch => {
+                        let rowData = data[cfg.id][ch];
+                        let isTotal = ch === 'total';
+                        let label = isTotal ? 'ยอดรวม' : r11ChannelLabels[ch] || ch;
+                        if (cfg.id === 'processing' && ch === 'EasyPass') label = 'บัญชีบัตร Easy'; 
+                        
+                        const rInp = (path, val, isAmt) => isManual ? `<td class="border ${getValidationClass(`${cfg.id}.${ch}.${path}`, val, sysData)}"><input type="text" value="${val}" onchange="updateVal('r11','${cfg.id}.${ch}.${path}',this.value)" class="w-full text-center bg-transparent border-0 placeholder-slate-300" placeholder="${isAmt?'0.00':'0'}"></td>` : `<td class="border p-1">${isAmt ? Number(val||0).toLocaleString(undefined,{minimumFractionDigits:2}) : (val||0).toLocaleString()}</td>`;
+
+                        return `<tr class="${isTotal ? 'bg-slate-100 font-bold' : 'hover:bg-slate-50'}">
+                            <td class="border p-1 text-left pl-2 ${isTotal ? 'text-center' : 'bg-slate-50/50'}">${label}</td>
+                            ${['C1','C2','C3','C4'].map(c => rInp(`member.thai.${c}`, rowData.member.thai[c], false)).join('')}
+                            ${['C1','C2','C3','C4'].map(c => rInp(`member.foreign.${c}`, rowData.member.foreign[c], false)).join('')}
+                            ${['C1','C2','C3','C4'].map(c => rInp(`member.juridical.${c}`, rowData.member.juridical[c], false)).join('')}
+                            ${rInp(`member.totalTxn`, rowData.member.totalTxn, false)}
+                            ${rInp(`member.totalAmount`, rowData.member.totalAmount, true)}
+                            ${['C1','C2','C3','C4'].map(c => rInp(`nonMember.vehicle.${c}`, rowData.nonMember.vehicle[c], false)).join('')}
+                            ${rInp(`nonMember.totalTxn`, rowData.nonMember.totalTxn, false)}
+                            ${rInp(`nonMember.totalAmount`, rowData.nonMember.totalAmount, true)}
+                            ${rInp(`grandTotalTxn`, rowData.grandTotalTxn, false)}
+                            ${rInp(`grandTotalAmount`, rowData.grandTotalAmount, true)}
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+    targetEl.innerHTML = html;
+}
+
+// --- ฟังก์ชันดึงข้อมูล R13 ---
+function getR13Summary() {
+    if (!filesData.R13) return null;
+    
+    const data = filesData.R13.data;
+
+    const initRow = () => ({
+        manual: { items: 0, amount: 0 },
+        auto_trip: { items: 0, credit: 0, saving: 0, mpass: 0, easypass: 0 },
+        auto_bill: { items: 0, credit: 0, saving: 0 }
+    });
+
+    const stats = {
+        grandTotalItems: 0, 
+        grandTotalAmount: 0,
+        rows: {
+            memberTotal: initRow(), 
+            memberThai: initRow(),
+            memberForeign: initRow(), 
+            memberJuridical: initRow(),
+            nonMember: initRow(), 
+            total: initRow()
+        },
+        sla1: { total: 0, pass: 0, fail: 0, avg: 0, note: '' },
+        sla2: { total: 0, pass: 0, fail: 0, note: '' },
+        sla3: { total: 0, pass: 0, note: '' }
+    };
+
+    // ⚡ ฟังก์ชันตัวช่วย: จัดการเงื่อนไขแนวนอนตามกฎข้อ 1.1 - 1.6
+    const updateRowLogic = (targetRow, form, type, channel, fee) => {
+        // 1.1 และ 1.4: รายครั้งชำระเอง
+        if (form === 'รายครั้ง' && type === 'ชำระเอง') {
+            targetRow.manual.items++;
+            targetRow.manual.amount += fee;
+        } 
+        // 1.2 และ 1.5: รายครั้งอัตโนมัติ
+        else if (form === 'รายครั้ง' && type === 'อัตโนมัติ') {
+            targetRow.auto_trip.items++;
+            if (channel === 'บัตรเครดิต/เดบิต') { targetRow.auto_trip.credit += fee; }
+            else if (channel === 'บัญชีออมทรัพย์') { targetRow.auto_trip.saving += fee; }
+            else if (channel === 'บัญชีบัตร M-PASS') { targetRow.auto_trip.mpass += fee; }
+            else if (channel === 'บัญชีบัตร Easy Pass') { targetRow.auto_trip.easypass += fee; }
+        }
+        // 1.3 และ 1.6: รอบบิลอัตโนมัติ
+        else if (form === 'รายรอบบิล' && type === 'อัตโนมัติ') {
+            targetRow.auto_bill.items++;
+            if (channel === 'บัตรเครดิต/เดบิต') { targetRow.auto_bill.credit += fee; }
+            else if (channel === 'บัญชีออมทรัพย์') { targetRow.auto_bill.saving += fee; }
+        }
+    };
+
+    // ลูปอ่านข้อมูลจากไฟล์ CSV ทีละบรรทัด
+    data.forEach(row => {
+        const headers = Object.keys(row).filter(k => k !== '__rawValues');
+        
+        // ค้นหาหัวคอลัมน์
+        const colMemberType = headers.find(h => h.includes('ประเภทสมาชิก'));
+        const colUserType = headers.find(h => h.includes('ประเภทผู้ใช้บริการ'));
+        const colForm = headers.find(h => h.includes('รูปแบบ(วิธีผูกการชำระเงิน)'));
+        const colType = headers.find(h => h.includes('ประเภท(วิธีผูกการชำระเงิน)'));
+        const colChannel = headers.find(h => h.includes('ช่องทาง(วิธีผูกการชำระเงิน)'));
+        const colFee = headers.find(h => h.includes('ค่าธรรมเนียม'));
+
+        if (!colMemberType || !colFee) return;
+
+        // ดึงข้อมูล
+        const memberType = String(row[colMemberType] || '').trim();
+        const userType = String(row[colUserType] || '').trim();
+        const form = String(row[colForm] || '').trim();
+        const type = String(row[colType] || '').trim();
+        const channel = String(row[colChannel] || '').trim();
+        
+        const feeStr = String(row[colFee] || '0').replace(/[^0-9.-]+/g, "");
+        const fee = parseFloat(feeStr) || 0;
+
+        // ⚡ เช็คเงื่อนไขแนวตั้งเพื่อส่งไปบวกยอด
+        if (memberType === 'สมาชิก') {
+            // อัปเดตแถว สมาชิก (ยอดรวมใหญ่)
+            updateRowLogic(stats.rows.memberTotal, form, type, channel, fee);
+            
+            // แยกยอดลงตามประเภทผู้ใช้บริการ (บุคคลไทย, ต่างชาติ, นิติบุคคล)
+            if (userType === 'บุคคลไทย') {
+                updateRowLogic(stats.rows.memberThai, form, type, channel, fee);
+            } else if (userType === 'บุคคลต่างชาติ') {
+                updateRowLogic(stats.rows.memberForeign, form, type, channel, fee);
+            } else if (userType === 'นิติบุคคล') {
+                updateRowLogic(stats.rows.memberJuridical, form, type, channel, fee);
+            }
+        } 
+        else if (memberType === 'ไม่ใช่สมาชิก') {
+            // อัปเดตแถว ไม่ใช่สมาชิก
+            updateRowLogic(stats.rows.nonMember, form, type, channel, fee);
+        }
+    });
+
+    // ⚡ ส่วนที่ 2: รวมยอดในแถว "ยอดรวม" ล่างสุด
+    // นำแนวตั้งของ ไทย, ต่างชาติ, นิติบุคคล, ไม่ใช่สมาชิก มาบวกเข้าด้วยกัน
+    const targetGroups = ['memberThai', 'memberForeign', 'memberJuridical', 'nonMember'];
+    
+    targetGroups.forEach(key => {
+        const r = stats.rows[key];
+        const t = stats.rows.total;
+        
+        // รวมยอดรายครั้งชำระเอง
+        t.manual.items += r.manual.items;
+        t.manual.amount += r.manual.amount;
+        
+        // รวมยอดรายครั้งอัตโนมัติ
+        t.auto_trip.items += r.auto_trip.items;
+        t.auto_trip.credit += r.auto_trip.credit;
+        t.auto_trip.saving += r.auto_trip.saving;
+        t.auto_trip.mpass += r.auto_trip.mpass;
+        t.auto_trip.easypass += r.auto_trip.easypass;
+        
+        // รวมยอดรอบบิลอัตโนมัติ
+        t.auto_bill.items += r.auto_bill.items;
+        t.auto_bill.credit += r.auto_bill.credit;
+        t.auto_bill.saving += r.auto_bill.saving;
+    });
+
+    // คำนวณ Grand Total ด้านบนสุดตาราง (รายการทั้งหมด, จำนวนเงินทั้งหมด) 
+    // โดยอิงจากแถว "ยอดรวม" (Total) เพื่อให้ตัวเลขเป๊ะและสมดุลที่สุด
+    const totalRow = stats.rows.total;
+    stats.grandTotalItems = totalRow.manual.items + totalRow.auto_trip.items + totalRow.auto_bill.items;
+    stats.grandTotalAmount = totalRow.manual.amount + 
+                             totalRow.auto_trip.credit + totalRow.auto_trip.saving + totalRow.auto_trip.mpass + totalRow.auto_trip.easypass + 
+                             totalRow.auto_bill.credit + totalRow.auto_bill.saving;
+
+    return stats;
+}
+
+// --- ฟังก์ชันวาดตาราง R13 ---
+function renderR13(targetId, data, isManual, sysData = null) {
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+    if (!isManual && !data) {
+        targetEl.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[400px]">กรุณาอัปโหลดไฟล์ R13</div>`;
+        return;
+    }
+
+    const rows = [
+        { label: 'สมาชิก', key: 'memberTotal', bold: true },
+        { label: 'บุคคลไทย', key: 'memberThai', indent: true },
+        { label: 'ต่างชาติ', key: 'memberForeign', indent: true },
+        { label: 'นิติบุคคล', key: 'memberJuridical', indent: true },
+        { label: 'ไม่ใช่สมาชิก', key: 'nonMember', bold: true },
+        { label: 'ยอดรวม', key: 'total', isTotal: true }
+    ];
+
+    let html = `
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+            <div class="p-4 border-b border-slate-100 ${isManual ? 'bg-amber-50 text-amber-800' : 'bg-purple-600 text-white'} flex justify-between items-center h-[60px]">
+                <h2 class="font-bold flex items-center gap-2">${isManual ? 'ตารางเปรียบเทียบ R13 (Manual Entry)' : 'สรุปผล R13 จากระบบ (Auto)'}</h2>
+                ${isManual ? `<button onclick="processSingleReport('r13')" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>ประมวลผล R13</button>` : ''}
+            </div>
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="min-w-[1200px] w-full border-collapse text-[11px] text-center table-fixed">
+                    <thead class="bg-slate-100/80 font-bold text-[12px]">
+                        <tr><th colspan="11" class="border p-2 bg-slate-200/50">ยอดที่ต้องชำระ (รายการ/บาท)</th></tr>
+                        <tr>
+                            <th class="border p-1 bg-slate-50 w-[140px]"></th>
+                            <th colspan="5" class="border p-1 h-[35px] ${isManual ? getValidationClass('grandTotalItems', data.grandTotalItems, sysData) : 'bg-white'}">
+                                ${isManual ? `<input type="text" value="${data.grandTotalItems}" onchange="updateVal('r13','grandTotalItems',this.value)" class="w-full text-center bg-transparent border-0 font-bold placeholder-slate-300" placeholder="0">` : (data?.grandTotalItems || 0).toLocaleString()}
+                            </th>
+                            <th colspan="5" class="border p-1 h-[35px] ${isManual ? getValidationClass('grandTotalAmount', data.grandTotalAmount, sysData) : 'bg-white'}">
+                                ${isManual ? `<input type="text" value="${data.grandTotalAmount}" onchange="updateVal('r13','grandTotalAmount',this.value)" class="w-full text-center bg-transparent border-0 font-bold placeholder-slate-300" placeholder="0.00">` : Number(data?.grandTotalAmount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                            </th>
+                        </tr>
+                        <tr class="bg-slate-100 text-slate-700">
+                            <th rowspan="2" class="border p-2 w-[140px]">รูปแบบการชำระเงิน</th>
+                            <th colspan="2" class="border p-2 bg-blue-50/50">รายครั้งชำระเอง</th>
+                            <th colspan="5" class="border p-2 bg-indigo-50/50">รายครั้งอัตโนมัติ</th>
+                            <th colspan="3" class="border p-2 bg-emerald-50/50">รอบบิลอัตโนมัติ</th>
+                        </tr>
+                        <tr class="bg-slate-50 text-[10px] text-slate-500 font-medium">
+                            <th class="border p-1">รายการ</th><th class="border p-1">บาท</th><th class="border p-1">รายการ</th><th class="border p-1">เครดิต/เดบิต</th><th class="border p-1">ออมทรัพย์</th><th class="border p-1">MPass</th><th class="border p-1">EasyPass</th><th class="border p-1">รายการ</th><th class="border p-1">เครดิต/เดบิต</th><th class="border p-1">ออมทรัพย์</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => {
+                            const rowData = data.rows[r.key];
+                            const bgColor = r.isTotal ? (isManual ? 'bg-amber-100 font-bold' : 'bg-slate-200 font-bold') : r.bold ? 'bg-slate-50 font-bold' : 'bg-white';
+                            const renderCell = (path, val, isAmt) => {
+                                if (isManual) {
+                                    return `<td class="border ${getValidationClass(`rows.${r.key}.${path}`, val, sysData)}"><input type="text" value="${val}" onchange="updateVal('r13','rows.${r.key}.${path}',this.value)" class="w-full text-center bg-transparent border-0 h-full placeholder-slate-300" placeholder="${isAmt ? '0.00' : '0'}"></td>`;
+                                }
+                                return `<td class="border p-1">${isAmt ? Number(val || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) : (val || 0).toLocaleString()}</td>`;
+                            };
+                            return `<tr class="${bgColor} h-[38px]"><td class="border text-left p-2 ${r.indent ? 'pl-8' : ''}">${r.label}</td>${renderCell('manual.items', rowData.manual.items, false)}${renderCell('manual.amount', rowData.manual.amount, true)}${renderCell('auto_trip.items', rowData.auto_trip.items, false)}${renderCell('auto_trip.credit', rowData.auto_trip.credit, true)}${renderCell('auto_trip.saving', rowData.auto_trip.saving, true)}${renderCell('auto_trip.mpass', rowData.auto_trip.mpass, true)}${renderCell('auto_trip.easypass', rowData.auto_trip.easypass, true)}${renderCell('auto_bill.items', rowData.auto_bill.items, false)}${renderCell('auto_bill.credit', rowData.auto_bill.credit, true)}${renderCell('auto_bill.saving', rowData.auto_bill.saving, true)}</tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3 ตาราง SLA เพิ่มเติมด้านล่าง (ดีไซน์ตาม Excel 100% พร้อมช่องกรอก Note) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 items-start">
+            
+            <!-- ตาราง SLA 1: สมาชิกทั้งหมด -->
+            <table class="w-full text-[12px] border-collapse border border-black bg-white shadow-sm">
+                <tbody>
+                    <tr>
+                        <td rowspan="6" class="border border-black bg-[#e6e6e6] text-center font-bold w-[15%]">SLA</td>
+                        <td colspan="2" class="border border-black bg-[#e6e6e6] text-center font-bold p-2">
+                            การแจ้งเรียกเก็บค่าผ่านทาง<br>(จำนวนรายการสมาชิกทั้งหมด)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla1.total', data.sla1.total, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla1.total}" onchange="updateVal('r13','sla1.total',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla1.total || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2 w-[65%]">แจ้งค่าผ่านทาง <= 10 นาที (P)</td>
+                        <td class="border border-black p-0 w-[20%] h-[35px] ${isManual ? getValidationClass('sla1.pass', data.sla1.pass, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla1.pass}" onchange="updateVal('r13','sla1.pass',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla1.pass || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2">แจ้งค่าผ่านทาง > 10 นาที (F)</td>
+                        <td class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla1.fail', data.sla1.fail, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla1.fail}" onchange="updateVal('r13','sla1.fail',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla1.fail || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2">เวลาเฉลี่ย(นาที:วินาที)</td>
+                        <td class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla1.avg', data.sla1.avg, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla1.avg}" onchange="updateVal('r13','sla1.avg',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla1.avg || '0:0')}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] bg-[#e6e6e6]">
+                            ${isManual ? `<input type="text" value="${data.sla1.note || ''}" placeholder="กรอกข้อมูล..." onchange="updateVal('r13','sla1.note',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0 placeholder-gray-400">` : `<div class="text-center font-bold">${data.sla1.note || ''}</div>`}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ตาราง SLA 2: สมาชิกชำระอัตโนมัติ -->
+            <table class="w-full text-[12px] border-collapse border border-black bg-white shadow-sm">
+                <tbody>
+                    <tr>
+                        <td rowspan="5" class="border border-black bg-[#e6e6e6] text-center font-bold w-[15%]">SLA</td>
+                        <td colspan="2" class="border border-black bg-[#e6e6e6] text-center font-bold p-2">
+                            การแจ้งเรียกเก็บค่าผ่านทาง<br>(จำนวนรายการสมาชิกชำระอัตโนมัติ)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla2.total', data.sla2.total, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla2.total}" onchange="updateVal('r13','sla2.total',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla2.total || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2 w-[65%]">จัดส่ง E-Statement <= 6 ชม. (P)</td>
+                        <td class="border border-black p-0 w-[20%] h-[35px] ${isManual ? getValidationClass('sla2.pass', data.sla2.pass, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla2.pass}" onchange="updateVal('r13','sla2.pass',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla2.pass || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2">จัดส่ง E-Statement > 6 ชม. (F)</td>
+                        <td class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla2.fail', data.sla2.fail, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla2.fail}" onchange="updateVal('r13','sla2.fail',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla2.fail || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] bg-[#e6e6e6]">
+                            ${isManual ? `<input type="text" value="${data.sla2.note || ''}" placeholder="กรอกข้อมูล..." onchange="updateVal('r13','sla2.note',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0 placeholder-gray-400">` : `<div class="text-center font-bold">${data.sla2.note || ''}</div>`}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- ตาราง SLA 3: ชำระด้วยตัวเอง -->
+            <table class="w-full text-[12px] border-collapse border border-black bg-white shadow-sm">
+                <tbody>
+                    <tr>
+                        <td rowspan="5" class="border border-black bg-[#e6e6e6] text-center font-bold w-[15%]">SLA</td>
+                        <td colspan="2" class="border border-black bg-[#e6e6e6] text-center font-bold p-2">
+                            การแจ้งเรียกเก็บค่าผ่านทาง<br>(สมาชิก/ไม่ใช่สมาชิกชำระด้วยตัวเอง)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] ${isManual ? getValidationClass('sla3.total', data.sla3.total, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla3.total}" onchange="updateVal('r13','sla3.total',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla3.total || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="border border-black bg-[#e6e6e6] text-center font-bold p-2 w-[65%]">จัดส่ง E-Billing <= 90 นาที</td>
+                        <td class="border border-black p-0 w-[20%] h-[35px] ${isManual ? getValidationClass('sla3.pass', data.sla3.pass, sysData) : 'bg-white'}">
+                            ${isManual ? `<input type="text" value="${data.sla3.pass}" onchange="updateVal('r13','sla3.pass',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0">` : `<div class="text-center font-bold">${(data.sla3.pass || 0).toLocaleString()}</div>`}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black bg-white h-[35px]"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border border-black p-0 h-[35px] bg-[#e6e6e6]">
+                            ${isManual ? `<input type="text" value="${data.sla3.note || ''}" placeholder="กรอกข้อมูล..." onchange="updateVal('r13','sla3.note',this.value)" class="w-full h-full text-center bg-transparent border-0 font-bold focus:ring-0 placeholder-gray-400">` : `<div class="text-center font-bold">${data.sla3.note || ''}</div>`}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+    targetEl.innerHTML = html;
+}
+
         // --- Data Update with Clean Spaces Rule ---
         function updateVal(type, path, val) {
     // 1. ลบลูกน้ำและช่องว่างออก
@@ -1638,12 +2562,14 @@ else if (type === 'r09') {
     renderR09('r09-auto', r09SysData, false);
     renderR09('r09-manual', manualR09Data, true, r09SysData);
 }
+    else if (type === 'r11') {
+    const r11Sys = getR11Summary();
+    renderR11('r11-auto', r11Sys, false);
+    renderR11('r11-manual', manualR11Data, true, r11Sys);
+}
     else if (type === 'r13') {
         const r13Sys = getR13Summary();
-        if (r13Sys) {
-            manualR13Data.grandTotal = r13Sys.grandTotal;
-            manualR13Data.rows = JSON.parse(JSON.stringify(r13Sys.rows));
-        }
+        // วาดตารางใหม่โดยใช้ข้อมูลที่ผู้ใช้พิมพ์ไว้ (manualR13Data) เทียบกับระบบ (r13Sys)
         renderR13('r13-auto', r13Sys, false);
         renderR13('r13-manual', manualR13Data, true, r13Sys);
     }
@@ -1736,37 +2662,53 @@ else if (type === 'r09') {
         }
 
         function showSummaryModal() {
-            const r05 = getR05Summary();
-            const r06 = getR06Summary();
-            const r07 = getR07Summary();
-            const r08 = getR08Summary();
-            const r09 = getR09Summary();
+    const r05 = getR05Summary();
+    const r06 = getR06Summary();
+    const r07 = getR07Summary();
+    const r08 = getR08Summary();
+    const r09 = getR09Summary();
+    
+    // 🌟 เพิ่ม 2 บรรทัดนี้ เพื่อดึงข้อมูล R11 และ R13 มารอไว้
+    const r11 = getR11Summary(); 
+    const r13 = getR13Summary(); 
 
-            let r09Total = 0;
-            if(r09) Object.values(r09).forEach(v => r09Total += v);
+    let r09Total = 0;
+    if(r09) Object.values(r09).forEach(v => r09Total += v);
 
-            const check = (val1, val2) => {
-                const v1 = parseFloat(val1) || 0;
-                const v2 = parseFloat(val2) || 0;
-                return {
-                    isEqual: Math.abs(v1 - v2) < 0.1,
-                    diff: v1 - v2
-                };
-            };
+    const check = (val1, val2) => {
+        const v1 = parseFloat(val1) || 0;
+        const v2 = parseFloat(val2) || 0;
+        return {
+            isEqual: Math.abs(v1 - v2) < 0.1,
+            diff: v1 - v2
+        };
+    };
 
-            const results = [
-                { title: "2.1 ยอดรถผ่านระบบ (R05 vs R09)", val1: r05?.grandTotal || 0, val2: r09Total, label1: "R05 (Auto)", label2: "R09 (Auto)", res: check(r05?.grandTotal, r09Total) },
-                { 
-        title: "2.2 ยอดตรวจสอบได้ (R05 vs R06)", 
-        val1: r05?.checked?.total || 0,            // ยอดตรวจสอบได้จาก R05
-        val2: r06?.grandTotal || 0,               // ยอดรวมด้านบนสุดจาก R06 (ไม่ใช่ยอดรถทั่วไป)
-        label1: "R05 (ตรวจสอบได้)", 
-        label2: "R06 (ยอดรวมด้านบน)", 
-        res: check(r05?.checked?.total, r06?.grandTotal) 
-    },
-                { title: "2.3 ยอดที่ตรวจสอบไม่ได้ (R05 vs R07)", val1: r05?.unchecked?.total || 0, val2: r07?.grandTotal || 0, label1: "R05 ตรวจสอบไม่ได้", label2: "R07 ทั้งหมด", res: check(r05?.unchecked?.total, r07?.grandTotal) },
-                { title: "2.4 ยอดรถยกเว้น (R06 vs R08)", val1: r06?.exemptTotal || 0, val2: r08?.totalExempt?.count || 0, label1: "R06 รถยกเว้น", label2: "R08 ทั้งหมด", res: check(r06?.exemptTotal, r08?.totalExempt?.count) }
-            ];
+    const results = [
+        { title: "2.1 ยอดรถผ่านระบบ (R05 vs R09)", val1: r05?.grandTotal || 0, val2: r09Total, label1: "R05 (Auto)", label2: "R09 (Auto)", res: check(r05?.grandTotal, r09Total) },
+        { 
+            title: "2.2 ยอดตรวจสอบได้ (R05 vs R06)", 
+            val1: r05?.checked?.total || 0,            
+            val2: r06?.grandTotal || 0,               
+            label1: "R05 (ตรวจสอบได้)", 
+            label2: "R06 (ยอดรวมด้านบน)", 
+            res: check(r05?.checked?.total, r06?.grandTotal) 
+        },
+        { title: "2.3 ยอดที่ตรวจสอบไม่ได้ (R05 vs R07)", val1: r05?.unchecked?.total || 0, val2: r07?.grandTotal || 0, label1: "R05 ตรวจสอบไม่ได้", label2: "R07 ทั้งหมด", res: check(r05?.unchecked?.total, r07?.grandTotal) },
+        
+        // สังเกตว่าบรรทัดนี้ต้องมีลูกน้ำ (,) ปิดท้ายด้วยนะครับ
+        { title: "2.4 ยอดรถยกเว้น (R06 vs R08)", val1: r06?.exemptTotal || 0, val2: r08?.totalExempt?.count || 0, label1: "R06 รถยกเว้น", label2: "R08 ทั้งหมด", res: check(r06?.exemptTotal, r08?.totalExempt?.count) },
+        
+        // 🌟 หัวข้อ 2.5 ที่เพิ่มเข้ามาใหม่
+        { 
+            title: "2.5 ยอดการออกบิลใบแจ้ง (R11 vs R13)", 
+            val1: r11?.summary?.total?.txn || 0, 
+            val2: r13?.grandTotalItems || 0, 
+            label1: "R11 (รายการทั้งหมด)", 
+            label2: "R13 (รายการทั้งหมด)", 
+            res: check(r11?.summary?.total?.txn, r13?.grandTotalItems) 
+        }
+    ];
 
             let html = `<div class="space-y-4 font-sarabun text-left mt-4">`;
             results.forEach(item => {
@@ -2022,7 +2964,6 @@ function clearAllData() {
     filesData = {};
 
     // 2. ล้างข้อมูลที่กรอกด้วยมือ (Manual State) กลับเป็นค่าเริ่มต้นทั้งหมด
-    // ล้าง R05
     manualData = {
         grandTotal: '',
         checked: { C1: '', C2: '', C3: '', C4: '', total: '' },
@@ -2034,7 +2975,6 @@ function clearAllData() {
         }
     };
 
-    // ล้าง R06
     manualR06Data = {
         grandTotal: '', normalTotal: '', exemptTotal: '',
         main: {
@@ -2045,11 +2985,9 @@ function clearAllData() {
         sla: { total: '', lessThan8: '', moreThan8: '', avgTime: '' }
     };
 
-    // ล้าง R07
     manualR07Data = { grandTotal: '' };
     r07Keys.forEach(k => manualR07Data[k.id] = '');
 
-    // ล้าง R08
     manualR08Data = {
         totalExempt: createInitialR08Row(),
         masterData: createInitialR08Row(),
@@ -2057,33 +2995,53 @@ function clearAllData() {
         staffApproved: createInitialR08Row()
     };
 
-    // ล้าง R09
     manualR09Data = {};
     r09LanesList.forEach(lane => manualR09Data[lane] = '');
 
+    manualR11Data = { summary: { member: initR11SummaryRow(), nonMember: initR11SummaryRow(), total: initR11SummaryRow() } };
+    r11Config.forEach(t => {
+        manualR11Data[t.id] = {};
+        t.channels.forEach(c => { manualR11Data[t.id][c] = initR11SubRow(); });
+    });
+
+    manualR13Data = {
+        grandTotalItems: '', grandTotalAmount: '',
+        rows: {
+            memberTotal: createInitialR13Row(), memberThai: createInitialR13Row(),
+            memberForeign: createInitialR13Row(), memberJuridical: createInitialR13Row(),
+            nonMember: createInitialR13Row(), total: createInitialR13Row()
+        },
+        sla1: { total: '', pass: '', fail: '', avg: '', note: '' }, 
+        sla2: { total: '', pass: '', fail: '', note: '' },         
+        sla3: { total: '', pass: '', note: '' }                    
+    };
+
     // 3. รีเซ็ตหน้าจอ UI
-    // - ล้างช่อง Input File ทุกช่อง
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => { input.value = ''; });
 
-    // - วาดการ์ดอัปโหลดใหม่ (เพื่อให้เครื่องหมายถูกหายไป)
     renderUploadCards();
-
-    // - ปิดปุ่ม Summary
     updateSummaryButtonState();
 
-    // - ล้างตารางในหน้า Report (ถ้ามีการแสดงผลอยู่)
-    const reportContainers = [
-        'r05-auto', 'r05-manual', 'r06-auto', 'r06-manual', 
-        'r07-auto', 'r07-manual', 'r08-auto', 'r08-manual', 
-        'r09-auto', 'r09-manual'
-    ];
-    reportContainers.forEach(id => {
+    // เคลียร์ฝั่ง Auto ให้แสดงกล่องข้อความว่างๆ
+    const autoContainers = ['r05-auto', 'r06-auto', 'r07-auto', 'r08-auto', 'r09-auto', 'r11-auto', 'r13-auto'];
+    autoContainers.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = '';
+        if (el) {
+            el.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 italic min-h-[300px]">กรุณาอัปโหลดไฟล์เพื่อประมวลผล</div>`;
+        }
     });
 
-    // 4. แจ้งเตือนความสำเร็จ (ใช้ SweetAlert2 ตามที่คุณมีในระบบ)
+    // วาดตาราง Manual ใหม่อีกครั้งให้เหลือแต่ช่องกรอกเปล่าๆ
+    renderR05('r05-manual', manualData, true, null);
+    renderR06('r06-manual', manualR06Data, true, null);
+    renderR07('r07-manual', manualR07Data, true, null);
+    renderR08('r08-manual', manualR08Data, true, null);
+    renderR09('r09-manual', manualR09Data, true, null);
+    renderR11('r11-manual', manualR11Data, true, null);
+    renderR13('r13-manual', manualR13Data, true, null);
+
+    // 4. แจ้งเตือน
     Swal.fire({
         icon: 'success',
         title: 'ล้างข้อมูลสำเร็จ',
@@ -2094,6 +3052,6 @@ function clearAllData() {
     });
 }
 
-	</script>
+    </script>
 </body>
 </html>
