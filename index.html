@@ -1174,6 +1174,117 @@ function runReconcile(type) {
         labelA = "R11 (Transaction No.)"; 
         labelB = "R13 (Transaction)";
     }
+    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (แยก Popup เป็นของตัวเอง ไม่กวนระบบเดิม) 🌟
+    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 🌟
+    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (แบบสแกนทั้งแถว + ใช้ลำดับคอลัมน์) 🌟
+    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (เพิ่มปุ่มกรอง ALPR/MLPR ในป๊อปอัป) 🌟
+    // 🌟 โค้ดที่แก้ไขใหม่ (ดึงข้อมูลแถวดิบๆ ทะลวงบั๊กการอ่าน Header ของ CSV 100%) 🌟
+    else if (type === 'sla100') {
+        if (!checkFiles(['R06'], ['R06'])) return;
+
+        const r06Data = filesData.R06.data;
+        const over100List = [];
+
+        r06Data.forEach((row) => {
+            // 1. ดึงข้อมูลดิบของแถวนั้นๆ ออกมาเลย (ไม่สน Header ที่ระบบดึงมาพัง)
+            const vals = row['__rawValues'] || [];
+            
+            // 2. ข้ามบรรทัดที่เป็น Header ที่พัง (ถ้าข้อมูลแถวปกติจริงๆ ต้องมีอย่างน้อย 20 ช่อง)
+            if (vals.length < 20) return;
+            
+            // 3. ดึงค่าตามลำดับช่องเป๊ะๆ (นับช่องแรกเป็น 0)
+            const txRaw = vals[1] || '-';      // ช่อง Transaction
+            const sysRaw = vals[4] || '-';     // ช่อง ประเภทระบบ
+            const plateRaw = vals[5] || '-';   // ช่อง ทะเบียนรถ
+            const provRaw = vals[6] || '-';    // ช่อง จังหวัด
+            const slaRaw = vals[17] || '0';    // ช่อง T2-T1 (เวลา)
+            const checkRaw = vals[19] || '-';  // ช่อง ประเภทการตรวจสอบ
+
+            // 4. แปลงค่าเวลาเป็นตัวเลขทศนิยม
+            const slaVal = parseFloat(String(slaRaw).replace(/[^0-9.-]+/g, "")) || 0;
+            
+            // 5. กรองเอาเฉพาะที่เกิน หรือเท่ากับ 100 นาที
+            if (slaVal >= 100) {
+                const tx = String(txRaw).trim();
+                const sys = String(sysRaw).trim();
+                const plate = String(plateRaw).trim();
+                const prov = String(provRaw).trim();
+                const checkType = String(checkRaw).trim();
+                
+                // ตรวจสอบว่าประเภทเป็น ALPR หรือ MLPR หรือไม่
+                const isTarget = checkType.toUpperCase().includes('ALPR') || checkType.toUpperCase().includes('MLPR');
+
+                over100List.push({
+                    html: `<b>${tx}</b> <br><span class="text-gray-500 text-xs">ระบบ: ${sys} | ทะเบียน: ${plate} ${prov} | ตรวจสอบ: ${checkType} | <span class="text-red-500 font-bold">เวลา: ${slaVal.toFixed(2)} นาที</span></span>`,
+                    isTarget: isTarget
+                });
+            }
+        });
+
+        // 6. สั่งวาด Popup สรุปผล พร้อมฝังปุ่มกรอง (Filter)
+        Swal.fire({
+            title: 'ผลการค้นหา 1.8 (SLA >= 100 นาที)',
+            width: '800px',
+            html: `
+                <div class="text-left max-h-[60vh] overflow-y-auto bg-slate-50 p-4 rounded-xl border relative">
+                    <div class="mb-4 pb-2 border-b font-bold text-slate-700 flex justify-between items-center sticky top-0 bg-slate-50 z-10">
+                        <span>รายการที่เกิน 100 นาที</span>
+                        <div class="flex items-center gap-2">
+                            ${over100List.length > 0 ? `<button id="btn-filter-alpr" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs hover:bg-blue-200 transition border border-blue-200 shadow-sm flex items-center gap-1">🔍 เฉพาะ ALPR/MLPR</button>` : ''}
+                            <span id="badge-total" class="text-red-600 bg-red-100 px-3 py-1 rounded-full text-sm shadow-sm border border-red-200">${over100List.length} รายการ</span>
+                        </div>
+                    </div>
+                    ${over100List.length > 0 
+                        ? `<ul id="sla-list-container" class="space-y-3 text-sm">
+                            ${over100List.map((item, idx) => `<li class="sla-item bg-white p-3 rounded-lg shadow-sm border border-red-100 flex gap-3" data-target="${item.isTarget}"><span class="text-red-500 font-bold sla-idx">•</span> <div class="w-full">${item.html}</div></li>`).join('')}
+                           </ul>`
+                        : `<div class="text-center text-slate-400 py-10 italic">✅ ไม่พบรายการที่ใช้เวลาเกิน 100 นาที</div>`
+                    }
+                </div>
+            `,
+            confirmButtonText: 'ปิดหน้าต่าง',
+            confirmButtonColor: '#ef4444',
+            
+            didOpen: () => {
+                const btn = document.getElementById('btn-filter-alpr');
+                const listItems = document.querySelectorAll('.sla-item');
+                const badge = document.getElementById('badge-total');
+                let isFiltered = false;
+
+                if(btn) {
+                    btn.addEventListener('click', () => {
+                        isFiltered = !isFiltered; 
+                        let count = 0;
+                        
+                        listItems.forEach(li => {
+                            if (isFiltered) {
+                                if (li.getAttribute('data-target') === 'true') {
+                                    li.style.display = 'flex';
+                                    count++;
+                                } else {
+                                    li.style.display = 'none';
+                                }
+                            } else {
+                                li.style.display = 'flex';
+                                count++;
+                            }
+                        });
+                        
+                        badge.innerText = count + ' รายการ';
+                        if (isFiltered) {
+                            btn.innerHTML = '🔄 โชว์ทั้งหมด';
+                            btn.className = 'px-3 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs hover:bg-slate-300 transition border border-slate-300 shadow-sm flex items-center gap-1';
+                        } else {
+                            btn.innerHTML = '🔍 เฉพาะ ALPR/MLPR';
+                            btn.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs hover:bg-blue-200 transition border border-blue-200 shadow-sm flex items-center gap-1';
+                        }
+                    });
+                }
+            }
+        });
+
+        return; 
+    }
     // 🌟 เพิ่มโค้ดส่วนนี้: สั่งให้แสดงผล Popup สำหรับปุ่ม 1.1 - 1.4
     if (result) {
         showResultPopup(title, result, labelA, labelB);
@@ -1191,12 +1302,12 @@ function renderReconcileButtons() {
         { id: '05vs08', title: '1.3 R05 ตรวจสอบได้ กับ R08', desc: 'เทียบ Transaction No. (R05 เฉพาะ "-" และกรอง "รถยกเว้น")', icon: 'file-text', color: 'emerald' },
         { id: '06vs08', title: '1.4 R06 กับ R08', desc: 'เทียบ Transaction No. ระหว่าง R06 (เฉพาะ "รถยกเว้น") และ R08', icon: 'files', color: 'blue' },
         { id: 'dup', title: '1.5 หารายการซ้ำ (R05)', desc: 'ตรวจสอบข้อมูลซ้ำจากคอลัมน์ G,H,J,K,M', icon: 'copy', color: 'rose' },
-        
-        // 👇 สังเกตว่าบรรทัด 1.6 ด้านล่างนี้ มีลูกน้ำ (,) ต่อท้ายแล้ว
         { id: '05vs13', title: '1.6 R05 ออกบิลได้ กับ R13', desc: 'กรองข้อมูล (-, R1, R5, R6บางส่วน, R8, R9) เทียบ R13', icon: 'search', color: 'purple' },
         
-        // 🌟 ปุ่ม 1.7 เพิ่มใหม่
-        { id: '11vs13', title: '1.7 R11 vs R13', desc: 'ชนข้อมูล Transaction No.', icon: 'arrow-left-right', color: 'orange' }
+        { id: '11vs13', title: '1.7 R11 vs R13', desc: 'ชนข้อมูล Transaction No.', icon: 'arrow-left-right', color: 'orange' },
+        
+        // 🌟 เพิ่มปุ่ม 1.8 ตรงนี้ครับ 🌟
+        { id: 'sla100', title: '1.8 หา SLA > 100 นาที', desc: 'ค้นหา R06 ที่ T2-T1 เกิน 100 นาที', icon: 'clock', color: 'red' }
     ];
 
     container.innerHTML = buttons.map(btn => `
