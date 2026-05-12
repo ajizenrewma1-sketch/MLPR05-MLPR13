@@ -391,15 +391,27 @@ r07Keys.forEach(k => manualR07Data[k.id] = '');
         const initR11SummaryRow = () => ({ txn: '', inv: '', toll: '', fee2: '', fee10: '', fee200: '', totalAmount: '' });
 
         const r11Config = [
-            { 
-                id: 'success', 
-                title: 'ตารางที่ 2 ชำระเงินสำเร็จ (รายการ)', 
-                channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
-            },
-            { id: 'fail', title: 'ตารางที่ 3 ชำระเงินไม่สำเร็จ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] }, 
-            { id: 'pending', title: 'ตารางที่ 4 รอดำเนินการชำระ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'Unspecified', 'Dispute', 'total'] },
-            { id: 'processing', title: 'ตารางที่ 5 ระหว่างดำเนินการชำระ (รายการ)', channels: ['EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] }
-        ];
+    { 
+        id: 'success', 
+        title: 'ตารางที่ 2 ชำระเงินสำเร็จ (รายการ)', 
+        channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
+    },
+    { 
+        id: 'fail', 
+        title: 'ตารางที่ 3 ชำระเงินไม่สำเร็จ (รายการ)', 
+        channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
+    }, 
+    { 
+        id: 'pending', 
+        title: 'ตารางที่ 4 รอดำเนินการชำระ (รายการ)', 
+        channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
+    },
+    { 
+        id: 'processing', 
+        title: 'ตารางที่ 5 ระหว่างดำเนินการชำระ (รายการ)', 
+        channels: ['CounterService', 'EXCEPTION', 'MobileBanking', 'POINTPRO', 'EasyPass', 'MPASS', 'Saving', 'Credit', 'total'] 
+    }
+];
 
         const r11ChannelLabels = {
             'CounterService': 'Counter Service', 'MobileBanking': 'Mobile Banking', 'EasyPass': 'บัญชีบัตร Easy Pass',
@@ -2211,19 +2223,17 @@ function renderR11(targetId, data, isManual, sysData = null) {
     }
 
 // 🌟 วางตรงนี้ครับ: อัปเดตชื่อแถวให้รองรับ M-PASS 🌟
-    const channelLabels = {
-        'CounterService': 'Counter Service',
-        'EXCEPTION': 'EXCEPTION', // เพิ่มใหม่
-        'MobileBanking': 'Mobile Banking',
-        'POINTPRO': 'POINTPRO', // เพิ่มใหม่
-        'EasyPass': 'บัญชีบัตร Easy Pass',
-        'MPASS': 'บัญชีบัตร M-PASS',
-        'Saving': 'บัญชีออมทรัพย์',
-        'Credit': 'บัตรเครดิต/เดบิต',
-        'Unspecified': 'ยังไม่ระบุช่องทาง',
-        'Dispute': 'Dispute',
-        'total': 'ยอดรวม'
-    };
+    const labels = {
+    'CounterService': 'Counter Service',
+    'EXCEPTION': 'EXCEPTION',
+    'MobileBanking': 'Mobile Banking',
+    'POINTPRO': 'POINTPRO',
+    'EasyPass': 'บัญชีบัตร Easy Pass',
+    'MPASS': 'บัญชีบัตร M-PASS',
+    'Saving': 'บัญชีออมทรัพย์',
+    'Credit': 'บัตรเครดิต/เดบิต',
+    'total': 'ยอดรวม'
+};
 
     let html = `
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
