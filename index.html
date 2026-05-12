@@ -963,9 +963,6 @@ function getR07Summary() {
         }
     });
 
-    // 2. ส่วนการแสดงผล (ถ้าไม่ใส่ส่วนนี้ หน้าจอจะนิ่งและช่องอัพโหลดอาจค้าง)
-    // ... (โค้ดส่วนประมวลผล Map เดิมของคุณ) ...
-
     if (duplicates.length > 0) {
         let listHtml = `<div class="text-left space-y-3 max-h-[500px] overflow-y-auto p-2 font-sarabun">`;
         
@@ -973,16 +970,17 @@ function getR07Summary() {
         let groupIndex = 0;
         
         duplicates.forEach((item, i) => {
-            // เช็คว่าเป็นกลุ่มใหม่หรือไม่ (ถ้าประโยคเช็คไม่เหมือนกับรายการก่อนหน้า แปลว่าเป็นกลุ่มซ้ำชุดใหม่)
+            // เช็คว่าเป็นกลุ่มใหม่หรือไม่
             const isNewGroup = i > 0 && item.content !== duplicates[i-1].content;
             
             if (isNewGroup) groupIndex++;
 
-            // กำหนดสีพื้นหลังสลับกันตามกลุ่ม (กลุ่มที่ 1 สีขาว, กลุ่มที่ 2 สีฟ้าอ่อน เป็นต้น)
+            // กำหนดสีพื้นหลังสลับกันตามกลุ่ม
             const bgColors = ['bg-white', 'bg-blue-50', 'bg-emerald-50', 'bg-amber-50', 'bg-purple-50'];
             const bgColor = bgColors[groupIndex % bgColors.length];
             const borderColor = isNewGroup ? 'border-t-4 border-t-red-500 mt-6' : 'border-gray-200';
 
+            // 🌟 ปรับปรุงส่วนนี้ให้คลิกได้ พร้อมเพิ่มคลาสสำหรับสั่งคัดลอก (copy-duplicate)
             listHtml += `
                 <div class="p-4 border-x border-b rounded-xl ${bgColor} ${borderColor} shadow-sm transition-all">
                     <div class="flex justify-between items-center mb-2">
@@ -994,8 +992,8 @@ function getR07Summary() {
                             ID: ${item.transNo}
                         </span>
                     </div>
-                    <div class="text-[12px] text-gray-600 font-medium p-2 bg-white/50 rounded border border-dashed border-gray-300">
-                        <span class="text-gray-400 text-[10px] block mb-1">ข้อมูลที่ซ้ำกัน:</span>
+                    <div class="copy-duplicate text-[12px] text-gray-600 font-medium p-2 bg-white/50 rounded border border-dashed border-gray-300 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition relative group" data-content="${item.content}">
+                        <span class="text-gray-400 text-[10px] block mb-1">ข้อมูลที่ซ้ำกัน: <span class="text-blue-500 font-normal hidden group-hover:inline ml-1 animate-pulse">(👆 คลิกเพื่อคัดลอกข้อความ)</span></span>
                         ${item.content}
                     </div>
                 </div>`;
@@ -1010,10 +1008,38 @@ function getR07Summary() {
             width: '600px',
             confirmButtonText: 'รับทราบ',
             confirmButtonColor: '#1e293b',
-            customClass: { popup: 'rounded-3xl' }
+            customClass: { popup: 'rounded-3xl' },
+            // 🌟 เพิ่มสคริปต์ดักจับการคลิกเพื่อคัดลอกข้อความ
+            didOpen: () => {
+                const copyItems = document.querySelectorAll('.copy-duplicate');
+                copyItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const content = item.getAttribute('data-content');
+                        navigator.clipboard.writeText(content).then(() => {
+                            // เก็บเนื้อหา HTML เดิมไว้
+                            const originalHTML = item.innerHTML;
+                            
+                            // เปลี่ยนแปลงหน้าจอชั่วคราวให้รู้ว่ากดคัดลอกแล้ว
+                            item.innerHTML = `<div class="text-green-600 font-bold text-center py-2 flex justify-center items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> 
+                                คัดลอกข้อมูลสำเร็จ!
+                            </div>`;
+                            item.classList.add('bg-green-50', 'border-green-300');
+                            
+                            // คืนค่าแสดงผลกลับเป็นเหมือนเดิมในเวลา 1.2 วินาที
+                            setTimeout(() => {
+                                item.innerHTML = originalHTML;
+                                item.classList.remove('bg-green-50', 'border-green-300');
+                            }, 1200);
+                        }).catch(err => {
+                            console.error('คัดลอกข้อมูลไม่สำเร็จ:', err);
+                        });
+                    });
+                });
+            }
         });
     } 
-else {
+    else {
         Swal.fire({
             icon: 'success',
             title: 'ไม่พบรายการซ้ำ',
@@ -1023,7 +1049,6 @@ else {
         });
     }
 
-    // คืนค่ากลับไปให้ระบบหลัก (เผื่อมีการนำไปใช้ต่อ)
     return duplicates;
 }
 
