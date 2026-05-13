@@ -1158,41 +1158,68 @@ function runReconcile(type) {
                 return false;
             });
 
-            // 2. ดึง Transaction No ของ R5 พร้อมแนบ ทะเบียน+จังหวัด
+            // 2. ดึง Transaction No ของ R5 พร้อมแนบ ทะเบียน+จังหวัด แบบมีลูกเล่น
             const r5Transactions = filteredR05
                 .filter(row => String(row[colR] || '').includes('R5'))
                 .map(row => {
                     const tx = String(row[txColR05] || '').trim();
-                    const plate = String(row[plateColR05] || '').trim();
-                    const prov = String(row[provColR05] || '').trim();
-                    let detail = tx;
-                    if (plate || prov) detail += ` [${plate} ${prov}]`.trim();
-                    return { tx: tx, display: detail }; // ส่งเป็น Object ไปใช้ใน UI
+                    const plate = String(row[plateColR05] || '').trim() || '-';
+                    const prov = String(row[provColR05] || '').trim() || '-';
+                    
+                    // สร้าง HTML แบบสวยงาม เน้นตัวอักษร "ทะเบียน" และ "จังหวัด"
+                    let detailHTML = `
+                        <span class="text-slate-800">${tx}</span> 
+                        <span class="ml-2 inline-flex items-center gap-1 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">
+                            <span class="text-[10px] font-black text-blue-800 uppercase tracking-wider">ทะเบียน</span>
+                            <span class="font-bold text-blue-900 text-[13px]">${plate}</span>
+                        </span>
+                        <span class="ml-1 inline-flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                            <span class="text-[10px] font-black text-amber-800 uppercase tracking-wider">จังหวัด</span>
+                            <span class="font-bold text-amber-900 text-[13px]">${prov}</span>
+                        </span>
+                    `;
+                    return { tx: tx, displayHTML: detailHTML }; 
                 })
                 .filter(v => v.tx !== '');
 
             // 3. นำข้อมูลที่ผ่านการกรองแล้ว ไปชนกับ R13 ตามปกติ
             const resultR13 = compareTransactions(filteredR05, r13Data, 'R05 (กรองเงื่อนไข)', 'R13');
 
-            // --- ส่วนที่เพิ่ม: แนบ ทะเบียน และ จังหวัด ให้กับรายการที่ไม่พบ ---
+            // 🌟 ฟังก์ชันช่วยสร้าง HTML แบบป้ายทะเบียนอยู่ "ด้านล่าง" (บรรทัดใหม่)
+            const createPlateProvHTML = (tx, plate, prov) => {
+                const p = plate || '-';
+                const v = prov || '-';
+                // ถึงไม่มีทะเบียน/จังหวัด ก็ให้มีโครงสร้างเดิม เพื่อให้หน้าตากล่องเท่ากัน
+                return `
+                    <div class="flex flex-col w-full gap-1">
+                        <div class="text-slate-800 font-black text-[13px] break-all">${tx}</div> 
+                        <div class="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span class="inline-flex items-center gap-1 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200 shadow-sm">
+                                <span class="text-[9px] font-black text-blue-800 uppercase tracking-wider">ทะเบียน</span>
+                                <span class="font-bold text-blue-900 text-[12px]">${p}</span>
+                            </span>
+                            <span class="inline-flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">
+                                <span class="text-[9px] font-black text-amber-800 uppercase tracking-wider">จังหวัด</span>
+                                <span class="font-bold text-amber-900 text-[12px]">${v}</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            // อัปเดตการดึงข้อมูลรายชื่อที่ไม่พบ ให้มีป้ายทะเบียนติดไปด้วย (แบบ HTML)
             resultR13.aNotInB_Details = resultR13.aNotInB.map(tx => {
                 const row = filteredR05.find(r => String(r[txColR05] || '').trim() === tx);
-                if (row) {
-                    const plate = String(row[plateColR05] || '').trim();
-                    const prov = String(row[provColR05] || '').trim();
-                    if (plate || prov) return `${tx} [${plate} ${prov}]`.trim();
-                }
-                return tx;
+                const plate = row ? String(row[plateColR05] || '').trim() : '-';
+                const prov = row ? String(row[provColR05] || '').trim() : '-';
+                return createPlateProvHTML(tx, plate, prov);
             });
 
             resultR13.bNotInA_Details = resultR13.bNotInA.map(tx => {
                 const row = r13Data.find(r => String(r[txColR13] || '').trim() === tx);
-                if (row) {
-                    const plate = String(row[plateColR13] || '').trim();
-                    const prov = String(row[provColR13] || '').trim();
-                    if (plate || prov) return `${tx} [${plate} ${prov}]`.trim();
-                }
-                return tx;
+                const plate = row ? String(row[plateColR13] || '').trim() : '-';
+                const prov = row ? String(row[provColR13] || '').trim() : '-';
+                return createPlateProvHTML(tx, plate, prov);
             });
 
             // 4. เรียกใช้ Popup แบบใหม่
@@ -1211,10 +1238,6 @@ function runReconcile(type) {
         labelA = "R11 (Transaction No.)"; 
         labelB = "R13 (Transaction)";
     }
-    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (แยก Popup เป็นของตัวเอง ไม่กวนระบบเดิม) 🌟
-    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 🌟
-    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (แบบสแกนทั้งแถว + ใช้ลำดับคอลัมน์) 🌟
-    // 🌟 โค้ดที่แก้ไขใหม่ สำหรับปุ่ม 1.8 (เพิ่มปุ่มกรอง ALPR/MLPR ในป๊อปอัป) 🌟
     // 🌟 โค้ดที่แก้ไขใหม่ (ดึงข้อมูลแถวดิบๆ ทะลวงบั๊กการอ่าน Header ของ CSV 100%) 🌟
     else if (type === 'sla100') {
         if (!checkFiles(['R06'], ['R06'])) return;
@@ -1490,23 +1513,27 @@ function renderReconcileButtons() {
         return 'bg-red-100 text-red-700 animate-pulse font-bold'; // ไม่ตรง = แดง
     }
 }
-// --- ฟังก์ชัน Popup สำหรับ R05 vs R13 (มีไฮไลต์พิเศษสำหรับ R5) ---
 // --- ฟังก์ชัน Popup สำหรับ R05 vs R13 (อัปเดต UI ให้แสดงแนวตั้งและมีทะเบียนรถ) ---
 function showR05vsR13Popup(title, res, r5List) {
     const aInBSet = new Set(res.aInB);
     
-    // 🌟 วาดส่วนแสดงผลพิเศษสำหรับ R5 แบบ List แนวตั้งตามภาพแนบ
+    // 🌟 วาดส่วนแสดงผลพิเศษสำหรับ R5 แบบ List แนวตั้ง (เอา hover:scale ออกเพื่อแก้ปัญหาสั่น)
     const r5Html = r5List.map((item, i) => {
         const isFound = aInBSet.has(item.tx);
-        const color = isFound ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'text-rose-700 bg-rose-50 border-rose-200 hover:bg-rose-100';
-        const icon = isFound ? '✓ เจอใน R13' : '❌ ไม่เจอใน R13';
+        const color = isFound ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300' : 'bg-rose-50 border-rose-300 hover:bg-rose-100 hover:border-rose-400 shadow-sm';
+        const icon = isFound 
+            ? '<span class="text-xs font-bold px-2 py-1 rounded bg-emerald-100 text-emerald-700">✓ เจอใน R13</span>' 
+            : '<span class="text-xs font-black px-2 py-1 rounded-md bg-rose-600 text-white animate-pulse shadow-sm">❌ ไม่เจอใน R13</span>';
+        
         return `
-            <div class="p-3 border rounded-xl text-sm font-mono transition-colors flex gap-3 shadow-sm ${color} justify-between items-center">
-                <div class="flex gap-3 items-center">
-                    <span class="text-slate-400 w-6 text-right font-bold">${i + 1}.</span>
-                    <span class="font-bold">${item.display}</span>
+            <div class="p-3 border rounded-xl font-mono transition-colors flex gap-3 ${color} justify-between items-center">
+                <div class="flex gap-3 items-center w-full">
+                    <span class="text-slate-400 w-6 text-right font-black text-xs">${i + 1}.</span>
+                    <div class="flex-1 flex flex-wrap items-center gap-y-1">
+                        ${item.displayHTML}
+                    </div>
                 </div>
-                <span class="text-xs font-bold px-2 py-1 rounded bg-white/60 shadow-sm">${icon}</span>
+                <div class="shrink-0">${icon}</div>
             </div>
         `;
     }).join('');
@@ -1556,25 +1583,31 @@ function showR05vsR13Popup(title, res, r5List) {
                         <!-- 🌟 เปลี่ยนจาก Grid หลายคอลัมน์ เป็น 1 คอลัมน์ (แนวตั้ง) -->
                         <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto custom-scrollbar relative z-10 p-1">
                             ${r5Html || '<div class="text-sm text-slate-400 italic py-4 text-center">ไม่พบรายการ R5 ในข้อมูลชุดนี้</div>'}
-                        </div>
-                    </div>
-
-                    <!-- 3. รายการที่ไม่พบในแต่ละไฟล์ (แสดงตัวอย่างย่อๆ) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        </div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-2 bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
-                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1">
+                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1 mb-2">
                                 <i data-lucide="alert-circle" class="w-4 h-4"></i> รายชื่อที่ไม่พบใน R13
                             </h4>
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] font-mono max-h-48 overflow-y-auto custom-scrollbar text-slate-600 space-y-1">
-                                ${res.aNotInB_Details.length > 0 ? res.aNotInB_Details.map(x => `<div class="border-b border-slate-200 pb-1">${x}</div>`).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 max-h-52 overflow-y-auto custom-scrollbar space-y-1.5">
+                                ${res.aNotInB_Details.length > 0 ? res.aNotInB_Details.map((x, i) => `
+                                    <div class="p-2 border rounded-lg font-mono flex gap-3 bg-white border-slate-200 items-start transition-colors hover:bg-rose-50 hover:border-rose-200">
+                                        <span class="text-slate-400 w-5 text-right font-black text-[10px] mt-1">${i + 1}.</span>
+                                        <div class="flex-1 w-full overflow-hidden">${x}</div>
+                                    </div>
+                                `).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
                             </div>
                         </div>
                         <div class="space-y-2 bg-white p-4 rounded-2xl border border-rose-100 shadow-sm">
-                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1">
-                                <i data-lucide="alert-circle" class="w-4 h-4"></i> รายชื่อที่ไม่พบใน R05 (เงื่อนไขที่กรอง)
+                            <h4 class="text-xs font-black text-rose-600 uppercase flex items-center gap-1 mb-2">
+                                <i data-lucide="alert-circle" class="w-4 h-4"></i> รายชื่อที่ไม่พบใน R05
                             </h4>
-                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px] font-mono max-h-48 overflow-y-auto custom-scrollbar text-slate-600 space-y-1">
-                                ${res.bNotInA_Details.length > 0 ? res.bNotInA_Details.map(x => `<div class="border-b border-slate-200 pb-1">${x}</div>`).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
+                            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 max-h-52 overflow-y-auto custom-scrollbar space-y-1.5">
+                                ${res.bNotInA_Details.length > 0 ? res.bNotInA_Details.map((x, i) => `
+                                    <div class="p-2 border rounded-lg font-mono flex gap-3 bg-white border-slate-200 items-start transition-colors hover:bg-rose-50 hover:border-rose-200">
+                                        <span class="text-slate-400 w-5 text-right font-black text-[10px] mt-1">${i + 1}.</span>
+                                        <div class="flex-1 w-full overflow-hidden">${x}</div>
+                                    </div>
+                                `).join('') : '<div class="text-center text-emerald-500 font-bold py-4">ข้อมูลครบถ้วน</div>'}
                             </div>
                         </div>
                     </div>
@@ -1598,67 +1631,53 @@ function showMissingItemsPopup() {
     if (!currentMissingData) return;
     const data = currentMissingData;
     
-    // ตั้งค่า z-[60] เพื่อให้ซ้อนทับ Popup อันเดิม
     const html = `
         <div id="modal-missing" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
             <div class="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
                 <div class="p-5 border-b flex justify-between items-center bg-rose-50 rounded-t-3xl">
                     <h3 class="font-black text-xl text-rose-800 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                        รายการที่หาไม่พบ (รายละเอียด)
+                        <i data-lucide="file-warning" class="w-6 h-6"></i> รายการที่หาไม่พบ (รายละเอียด)
                     </h3>
                     <button onclick="document.getElementById('modal-missing').remove()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">✕</button>
                 </div>
-                
                 <div class="p-6 overflow-y-auto bg-slate-50 flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- ตารางฝั่งซ้าย (มีใน A แต่ไม่พบใน B) -->
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                         <div class="mb-4 border-b pb-3">
-                            <h4 class="font-bold text-rose-600 text-sm">ไม่พบใน : <span class="text-slate-800">${data.labelB}</span></h4>
-                            <div class="text-xs text-slate-500 mt-1">(มีใน ${data.labelA} จำนวน ${data.listA.length.toLocaleString()} รายการ)</div>
+                            <h4 class="font-bold text-rose-600 text-sm italic">ไม่พบใน: ${data.labelB}</h4>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-tighter">มีใน ${data.labelA} (${data.listA.length.toLocaleString()} รายการ)</div>
                         </div>
-                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar pr-2 space-y-1.5">
-                            ${data.listA.length > 0 ?
-                                data.listA.map((item, i) => `
-                                    <div class="p-2 border rounded-lg text-sm font-mono text-slate-700 bg-slate-50 hover:bg-rose-50 hover:border-rose-200 transition-colors flex gap-3">
-                                        <span class="text-slate-400 w-6 text-right">${i+1}.</span>
-                                        <span class="font-bold">${item}</span>
-                                    </div>
-                                `).join('')
-                                : '<div class="text-center text-emerald-500 font-bold py-10 bg-emerald-50 rounded-xl">ไม่มีรายการตกหล่น (ครบถ้วน)</div>'
-                            }
+                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar space-y-2 pr-2">
+                            ${data.listA.length > 0 ? data.listA.map((item, i) => `
+                                <div class="p-3 border rounded-xl font-mono flex gap-3 bg-white border-slate-200 items-start transition-colors hover:bg-rose-50 hover:border-rose-200 shadow-sm">
+                                    <span class="text-slate-400 w-6 text-right font-black text-xs mt-1">${i+1}.</span>
+                                    <div class="flex-1 w-full">${item}</div>
+                                </div>
+                            `).join('') : '<div class="text-center py-10 text-emerald-500 font-bold bg-emerald-50 rounded-xl">ครบถ้วน</div>'}
                         </div>
                     </div>
-
-                    <!-- ตารางฝั่งขวา (มีใน B แต่ไม่พบใน A) -->
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                         <div class="mb-4 border-b pb-3">
-                            <h4 class="font-bold text-rose-600 text-sm">ไม่พบใน : <span class="text-slate-800">${data.labelA}</span></h4>
-                            <div class="text-xs text-slate-500 mt-1">(มีใน ${data.labelB} จำนวน ${data.listB.length.toLocaleString()} รายการ)</div>
+                            <h4 class="font-bold text-rose-600 text-sm italic">ไม่พบใน: ${data.labelA}</h4>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-tighter">มีใน ${data.labelB} (${data.listB.length.toLocaleString()} รายการ)</div>
                         </div>
-                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar pr-2 space-y-1.5">
-                            ${data.listB.length > 0 ?
-                                data.listB.map((item, i) => `
-                                    <div class="p-2 border rounded-lg text-sm font-mono text-slate-700 bg-slate-50 hover:bg-rose-50 hover:border-rose-200 transition-colors flex gap-3">
-                                        <span class="text-slate-400 w-6 text-right">${i+1}.</span>
-                                        <span class="font-bold">${item}</span>
-                                    </div>
-                                `).join('')
-                                : '<div class="text-center text-emerald-500 font-bold py-10 bg-emerald-50 rounded-xl">ไม่มีรายการตกหล่น (ครบถ้วน)</div>'
-                            }
+                        <div class="flex-grow overflow-y-auto max-h-[55vh] custom-scrollbar space-y-2 pr-2">
+                            ${data.listB.length > 0 ? data.listB.map((item, i) => `
+                                <div class="p-3 border rounded-xl font-mono flex gap-3 bg-white border-slate-200 items-start transition-colors hover:bg-rose-50 hover:border-rose-200 shadow-sm">
+                                    <span class="text-slate-400 w-6 text-right font-black text-xs mt-1">${i+1}.</span>
+                                    <div class="flex-1 w-full">${item}</div>
+                                </div>
+                            `).join('') : '<div class="text-center py-10 text-emerald-500 font-bold bg-emerald-50 rounded-xl">ครบถ้วน</div>'}
                         </div>
                     </div>
                 </div>
-                
                 <div class="p-4 border-t bg-white rounded-b-3xl flex justify-center">
-                    <button onclick="document.getElementById('modal-missing').remove()" class="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all hover:scale-105 active:scale-95 shadow-md">
-                        ปิดหน้าต่างนี้ (กลับไปหน้าสรุป)
-                    </button>
+                    <button onclick="document.getElementById('modal-missing').remove()" class="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 transition-transform active:scale-95 shadow-md">ปิดหน้าต่าง</button>
                 </div>
             </div>
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', html);
+    if (window.lucide) lucide.createIcons();
 }
         function renderReports() {
             const r05Sys = getR05Summary();
