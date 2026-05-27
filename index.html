@@ -1854,21 +1854,45 @@ function showMissingItemsPopup() {
     </tr>
 </thead>
                     <tbody>
-                        ${rows.map(r => {
-                            const rowData = data.main[r.key];
-                            const bgColor = r.isTotal ? (isManual ? 'bg-amber-100' : 'bg-slate-800 text-white') : r.bold ? 'bg-slate-100' : '';
-                            return `
-                                <tr class="${bgColor} h-[35px]">
-                                    <td class="border text-left p-1 ${r.indent ? 'pl-6 opacity-60' : 'font-bold'}">${r.label}</td>
-                                    <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.items`, rowData.items, sysData) : ''}">${isManual ? `<input type="text" value="${rowData.items}" onchange="updateVal('r06','main.${r.key}.items',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.items || 0).toLocaleString()}</td>
-                                    <td class="border font-mono font-bold ${isManual ? getValidationClass(`main.${r.key}.amount`, rowData.amount, sysData) : (r.isTotal ? 'text-green-400' : 'text-blue-700')}">${isManual ? `<input type="text" value="${rowData.amount}" onchange="updateVal('r06','main.${r.key}.amount',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.amount || 0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
-                                    ${['C1','C2','C3','C4'].map(c => `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''}">${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData[c] || 0).toLocaleString()}</td>`).join('')}
-                                    <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.exItems`, rowData.exItems, sysData) : 'text-amber-700'}">${isManual ? `<input type="text" value="${rowData.exItems}" onchange="updateVal('r06','main.${r.key}.exItems',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData.exItems || 0).toLocaleString()}</td>
-                                    ${['exC1','exC2','exC3','exC4'].map(c => `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''}">${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData[c] || 0).toLocaleString()}</td>`).join('')}
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
+    ${rows.map(r => {
+        const rowData = data.main[r.key];
+        const bgColor = r.isTotal ? (isManual ? 'bg-amber-100' : 'bg-slate-800 text-white') : r.bold ? 'bg-slate-100' : '';
+        
+        return `
+            <tr class="${bgColor} h-[35px]">
+                <td class="border text-left p-1 ${r.indent ? 'pl-6 opacity-60' : 'font-bold'}">${r.label}</td>
+                
+                <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.items`, rowData.items, sysData) : ''}">
+                    ${isManual ? `<input type="text" value="${rowData.items}" onchange="updateVal('r06','main.${r.key}.items',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.items || 0).toLocaleString()}
+                </td>
+                
+                <td class="border font-mono font-bold ${isManual ? getValidationClass(`main.${r.key}.amount`, rowData.amount, sysData) : (r.isTotal ? 'text-green-400' : 'text-blue-700')}">
+                    ${isManual ? `<input type="text" value="${rowData.amount}" onchange="updateVal('r06','main.${r.key}.amount',this.value)" class="w-full text-center bg-transparent border-0 font-bold">` : (rowData.amount || 0).toLocaleString(undefined,{minimumFractionDigits:2})}
+                </td>
+                
+                ${['C1','C2','C3','C4'].map(c => {
+                    // ถ้าเป็นบุคลต่างชาติ และไม่ใช่ C1 และมีค่ามากกว่า 0 -> แดง
+                    const isError = isManual && r.key === 'memberForeign' && c !== 'C1' && parseFloat(rowData[c] || 0) > 0;
+                    return `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''} ${isError ? 'bg-red-500' : ''}">
+                        ${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0 ${isError ? 'text-white font-bold' : ''}">` : (rowData[c] || 0).toLocaleString()}
+                    </td>`;
+                }).join('')}
+                
+                <td class="border font-mono ${isManual ? getValidationClass(`main.${r.key}.exItems`, rowData.exItems, sysData) : 'text-amber-700'}">
+                    ${isManual ? `<input type="text" value="${rowData.exItems}" onchange="updateVal('r06','main.${r.key}.exItems',this.value)" class="w-full text-center bg-transparent border-0">` : (rowData.exItems || 0).toLocaleString()}
+                </td>
+                
+                ${['exC1','exC2','exC3','exC4'].map(c => {
+                    // ถ้าเป็นบุคลต่างชาติ และมีค่าในช่อง ex (ถือว่าผิด) -> แดง
+                    const isError = isManual && r.key === 'memberForeign' && parseFloat(rowData[c] || 0) > 0;
+                    return `<td class="border ${isManual ? getValidationClass(`main.${r.key}.${c}`, rowData[c], sysData) : ''} ${isError ? 'bg-red-500' : ''}">
+                        ${isManual ? `<input type="text" value="${rowData[c]}" onchange="updateVal('r06','main.${r.key}.${c}',this.value)" class="w-full text-center bg-transparent border-0 ${isError ? 'text-white font-bold' : ''}">` : (rowData[c] || 0).toLocaleString()}
+                    </td>`;
+                }).join('')}
+            </tr>
+        `;
+    }).join('')}
+</tbody>
                 </table>
             </div>
         </div>
