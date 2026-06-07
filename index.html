@@ -944,6 +944,10 @@ function getR07Summary() {
         // ดึง Transaction No. (ตรวจสอบชื่อคอลัมน์ให้ตรงกับ CSV)
         const transNo = row['Transaction No.'] || row['Transaction No'] || 'ไม่พบเลข';
 
+	if (String(transNo).startsWith('TW')) {
+            return; 
+        }
+
         if (combinedKey.trim() !== "") {
             if (map.has(combinedKey)) {
                 const firstMatch = map.get(combinedKey);
