@@ -353,7 +353,7 @@ const r07Keys = [
     { id: 'R6_SALE', label: 'R6 = เพื่อขายเพื่อซ่อม' },
     { id: 'R6_TC', label: 'R6 = TC' },
     { id: 'R6_QC', label: 'R6 = QC' },
-    { id: 'R6_FORBID', label: 'R6 = เป็นรถที่ได้รับอนุญาตให้ใช้ทาง เช่น ป้ายแดง รถจักรยานยนต์ รถลากจูง เป็นต้น' },
+    { id: 'R6_FORBID', label: 'R6 = เป็นรถที่ไม่ได้รับอนุญาตให้ใช้ทาง เช่น ป้ายแดง รถจักรยานยนต์ รถลากจูง เป็นต้น' },
     { id: 'R7', label: 'R7 = วัตถุอื่นๆ ที่ไม่ใช่รถ (Noise) และรถที่ไม่สามารถระบุป้ายทะเบียนได้' },
     { id: 'R8', label: 'R8 = รถตำรวจ' },
     { id: 'R9', label: 'R9 = รถทูตที่เก็บเงินได้' },
@@ -821,7 +821,7 @@ function getR07Summary() {
     const container = document.getElementById('view-upload');
     if (!container) return;
 
-    container.innerHTML = REQUIRED_FILES.map(key => {
+    let html = REQUIRED_FILES.map(key => {
         let displayName = `รายงาน ${key}`;
         let icon = "file-text";
         
@@ -830,10 +830,11 @@ function getR07Summary() {
 
         const isUploaded = !!filesData[key];
         const isMultipleType = (key === 'Tcvs' || key === 'TankReport');
+        // เช็คว่าเป็น R05 - R09 หรือไม่ เพื่อเปิดปุ่ม PDF
+        const isPDFSupported = ['R05', 'R06', 'R07', 'R08', 'R09'].includes(key); 
 
         return `
             <div class="nika-upload-card p-8 group ${isUploaded ? 'border-purple-400' : 'border-white'}">
-                <!-- เอฟเฟกต์ก้อนเมฆตกแต่งพื้นหลัง -->
                 <div class="absolute -top-10 -right-10 w-32 h-32 bg-purple-50 rounded-full blur-3xl opacity-50 group-hover:bg-amber-100 transition-colors"></div>
                 
                 <div class="relative z-10">
@@ -847,17 +848,31 @@ function getR07Summary() {
                         </div>
                     </div>
 
-                    <div class="relative group/input">
-                        <input type="file" ${isMultipleType ? 'multiple' : ''} accept=".csv" 
-                               onchange="${isMultipleType ? 'handleMultipleFiles' : 'handleFileUpload'}('${key}', this)" 
-                               class="nika-file-input block w-full text-sm text-slate-500 cursor-pointer
-                                      focus:outline-none file:mr-4" />
+                    <div class="space-y-4">
+                        <!-- ช่องอัปโหลด CSV (หลัก) -->
+                        <div class="relative group/input">
+                            <label class="text-[10px] text-slate-500 font-bold uppercase mb-1 block">📥 อัปโหลดไฟล์ CSV</label>
+                            <input type="file" ${isMultipleType ? 'multiple' : ''} accept=".csv" 
+                                   onchange="${isMultipleType ? 'handleMultipleFiles' : 'handleFileUpload'}('${key}', this)" 
+                                   class="nika-file-input block w-full text-sm text-slate-500 cursor-pointer focus:outline-none file:mr-4" />
+                        </div>
+
+                        <!-- ⚡ ช่องอัปโหลด PDF (แสดงเฉพาะ R05-R09) -->
+                        ${isPDFSupported ? `
+                        <div class="relative group/input pt-3 border-t border-slate-100">
+                            <label class="text-[10px] text-amber-500 font-bold uppercase mb-1 block">📄 อัปโหลดไฟล์ PDF (ดึงข้อมูล API)</label>
+                            <input type="file" accept=".pdf" 
+                                   onchange="uploadAndProcessPDF(this, '${key}')" 
+                                   class="nika-file-input block w-full text-sm text-slate-500 cursor-pointer focus:outline-none file:mr-4 
+                                          file:bg-amber-50 file:text-amber-600 hover:file:bg-amber-100" />
+                        </div>
+                        ` : ''}
                     </div>
 
                     ${isUploaded ? `
                         <div class="mt-4 flex items-center gap-2 text-purple-600 animate__animated animate__backInUp">
                             <div class="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
-                            <span class="text-xs font-black italic">GEAR 5 ACTIVE ${isMultipleType ? `(${filesData[key].fileCount} FILES)` : ''}</span>
+                            <span class="text-xs font-black italic">CSV ACTIVE ${isMultipleType ? `(${filesData[key].fileCount} FILES)` : ''}</span>
                         </div>
                     ` : `
                         <div class="mt-4 text-[10px] text-slate-300 font-bold uppercase tracking-tighter">
@@ -868,10 +883,895 @@ function getR07Summary() {
             </div>
         `;
     }).join('');
+
+    container.innerHTML = html;
+    if (window.lucide) { lucide.createIcons(); }
+}
+
+// ฟังก์ชันส่งไฟล์ PDF ไปหลังบ้าน
+// 1. ฟังก์ชันช่วยใส่ลูกน้ำให้ตัวเลข
+// ฟังก์ชันช่วยใส่ลูกน้ำให้ตัวเลข
+const formatNum = (num) => Number(num || 0).toLocaleString();
+
+// ==========================================
+// 📌 ส่วนที่ 1: โค้ด R05 ที่ปรับปรุงการแสดงผลเส้นทางไม่ให้ซ้ำซ้อน
+// ==========================================
+function getCleanRouteName(routeText) {
+    if (!routeText) return '-';
     
-    // สั่งให้ Lucide Icons ทำงานหลังจาก Render
-    if (window.lucide) {
-        lucide.createIcons();
+    // ถ้ามีเครื่องหมาย : คั่นกลาง ให้ตรวจสอบว่าข้อความซ้ำกันหรือไม่
+    if (routeText.includes(':')) {
+        const parts = routeText.split(':').map(p => p.trim());
+        // ตัดคำว่า HQ ออกเพื่อเทียบความเหมือน
+        const cleanFirst = parts[0].replace(/\s*HQ\s*/i, '').trim();
+        const cleanSecond = parts[1] ? parts[1].replace(/\s*HQ\s*/i, '').trim() : '';
+        
+        // ถ้าข้อความเหมือนกัน ให้แสดงผลแค่พาร์ทเดียว
+        if (cleanFirst === cleanSecond || cleanSecond === '') {
+            return parts[1] || parts[0];
+        }
+    }
+    return routeText;
+}
+
+function createReportHeader(filters) {
+    const cleanRoute = getCleanRouteName(filters.route);
+    return `
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <p class="text-xs text-slate-400 font-bold uppercase mb-1">📍 เส้นทาง (Route)</p>
+            <p class="text-sm font-bold text-slate-800">${cleanRoute}</p>
+            <p class="text-xs text-slate-500 mt-2">📅 <b>วันที่:</b> ${filters.date_start} ถึง ${filters.date_end}</p>
+        </div>
+    `;
+}
+
+function createReportSummary(summary, tableData0) {
+    return `
+        <div class="space-y-3">
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+                    <div class="text-[10px] text-blue-500 font-bold uppercase">ปริมาณทั้งหมด</div>
+                    <div class="text-lg font-black text-blue-700">${formatNum(summary.total_pass)}</div>
+                </div>
+                <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                    <div class="text-[10px] text-emerald-500 font-bold uppercase">ผ่าน (Verified Total)</div>
+                    <div class="text-lg font-black text-emerald-700">${formatNum(summary.verified)}</div>
+                </div>
+                <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                    <div class="text-[10px] text-rose-500 font-bold uppercase">ไม่ผ่าน (Unverified Total)</div>
+                    <div class="text-lg font-black text-rose-700">${formatNum(summary.unverified)}</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200 text-center">
+                    <div class="text-[10px] text-emerald-700 font-bold">รถที่ผ่านระบบ M-Flow และตรวจสอบได้ (คัน)</div>
+                    <div class="text-lg font-black text-emerald-800">${formatNum(tableData0.verified.total)}</div>
+                </div>
+                <div class="bg-rose-50/70 p-3 rounded-xl border border-rose-200 text-center">
+                    <div class="text-[10px] text-rose-700 font-bold">รถที่ผ่านระบบ M-Flow และตรวจสอบไม่ได้ (คัน)</div>
+                    <div class="text-lg font-black text-rose-800">${formatNum(tableData0.unverified.total)}</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function createSystemTable(tableData) {
+    const systems = [
+        { name: 'ALPR', data: tableData[1] },
+        { name: 'MLPR (Op.)', data: tableData[2] },
+        { name: 'MANUAL', data: tableData[3] }
+    ];
+
+    const rowsHTML = systems.map(sys => `
+        <div class="flex justify-between px-3 py-2 hover:bg-slate-50 transition-colors">
+            <span class="text-slate-500">${sys.name}</span>
+            <div class="flex gap-2">
+                <span class="font-bold text-slate-700 w-16 text-right">${formatNum(sys.data.verified.total)}</span>
+                <span class="font-bold text-rose-500 w-16 text-right">${formatNum(sys.data.unverified.total)}</span>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600 flex justify-between items-center">
+                <span class="uppercase">🔍 แยกตามระบบ</span>
+                <div class="flex gap-2">
+                    <span class="text-emerald-600 w-16 text-right">ผ่าน</span>
+                    <span class="text-rose-600 w-16 text-right">ไม่ผ่าน</span>
+                </div>
+            </div>
+            <div class="divide-y divide-slate-100 text-sm">
+                ${rowsHTML}
+            </div>
+        </div>
+    `;
+}
+
+function createVehicleTable(tableData0) {
+    const classes = [
+        { label: '4 ล้อ (C1)', key: 'C1' },
+        { label: '6 ล้อ (C2)', key: 'C2' },
+        { label: '> 6 ล้อ (C3)', key: 'C3' },
+        { label: 'อื่นๆ (C4)', key: 'C4' }
+    ];
+
+    const rowsHTML = classes.map(cls => `
+        <div class="flex justify-between px-3 py-2 hover:bg-slate-50 transition-colors">
+            <span class="text-slate-500">${cls.label}</span>
+            <div class="flex gap-2">
+                <span class="font-bold text-slate-700 w-16 text-right">${formatNum(tableData0.verified[cls.key])}</span>
+                <span class="font-bold text-rose-500 w-16 text-right">${formatNum(tableData0.unverified[cls.key])}</span>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-600 flex justify-between items-center">
+                <span class="uppercase">🚙 แยกตามประเภทรถ</span>
+                <div class="flex gap-2">
+                    <span class="text-emerald-600 w-16 text-right">ผ่าน</span>
+                    <span class="text-rose-600 w-16 text-right">ไม่ผ่าน</span>
+                </div>
+            </div>
+            <div class="divide-y divide-slate-100 text-sm">
+                ${rowsHTML}
+            </div>
+        </div>
+    `;
+}
+
+// ==========================================
+// 📌 ส่วนที่ 2: ฟังก์ชันใหม่สำหรับ R06 (อิงตามโครงสร้าง JSON จริง)[cite: 3]
+// ==========================================
+function createR06HTML(result) {
+    // 1. สร้างส่วนหัว (Header)
+    const headerHTML = `
+        <div class="bg-purple-50/50 rounded-xl p-4 border border-purple-100 mb-4">
+            <div class="flex items-center text-purple-700 text-sm font-semibold mb-2">
+                📍 เส้นทาง (ROUTE)
+            </div>
+            <div class="text-gray-800 font-bold text-base mb-1">${result.filters.route}</div>
+            <div class="text-gray-500 text-sm flex items-center">
+                📅 วันที่: ${result.filters.date_start} ถึง ${result.filters.date_end}
+            </div>
+        </div>
+    `;
+
+    // 2. สร้างการ์ดสรุปยอด (Summary Cards)
+    const summaryHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div class="bg-white rounded-xl border border-gray-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-gray-500 mb-1">รถทั้งหมด</div>
+                <div class="text-xl font-bold text-gray-800">${result.summary.total_vehicles.toLocaleString()}</div>
+            </div>
+            <div class="bg-blue-50/50 rounded-xl border border-blue-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-blue-500 mb-1">รถทั่วไป</div>
+                <div class="text-xl font-bold text-blue-700">${result.summary.general_vehicles.toLocaleString()}</div>
+            </div>
+            <div class="bg-emerald-50/50 rounded-xl border border-emerald-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-emerald-500 mb-1">รถยกเว้น</div>
+                <div class="text-xl font-bold text-emerald-700">${result.summary.exempt_vehicles.toLocaleString()}</div>
+            </div>
+        </div>
+    `;
+
+    // 3. สร้างตารางหมวดหมู่ และ แทรกแถว "รถยกเว้น" 
+    let tableRows = '';
+    result.data.forEach(item => {
+        // แถวหลัก (รถทั่วไป / สมาชิก)
+        tableRows += `
+            <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                <td class="py-3 px-4 font-medium text-gray-700 text-sm">${item.category}</td>
+                <td class="py-3 px-4 text-right text-gray-600 text-sm">${item.items.toLocaleString()}</td>
+                <td class="py-3 px-4 text-right font-semibold text-purple-600 text-sm">${item.amount > 0 ? item.amount.toLocaleString() : '-'}</td>
+                <td class="py-3 px-4 text-right text-gray-500 text-xs">
+                    C1: ${item.general.C1.toLocaleString()}, 
+                    C2: ${item.general.C2.toLocaleString()}, 
+                    C3: ${item.general.C3.toLocaleString()}, 
+                    C4: ${item.general.C4.toLocaleString()}
+                </td>
+            </tr>
+        `;
+
+        // ตรวจสอบและแทรกแถว "รถยกเว้น" (ถ้ามี)
+        const ex = item.exempt;
+        const totalExempt = ex.C1 + ex.C2 + ex.C3 + ex.C4;
+        
+        if (totalExempt > 0) {
+            tableRows += `
+                <tr class="border-b border-emerald-50 bg-emerald-50/30 hover:bg-emerald-50/60 transition-colors">
+                    <td class="py-2 px-4 font-medium text-emerald-600 text-sm pl-8">↳ รถยกเว้น</td>
+                    <td class="py-2 px-4 text-right text-emerald-600 text-sm">${totalExempt.toLocaleString()}</td>
+                    <td class="py-2 px-4 text-right text-emerald-400 text-sm">-</td>
+                    <td class="py-2 px-4 text-right text-emerald-600 text-xs">
+                        C1: ${ex.C1.toLocaleString()}, 
+                        C2: ${ex.C2.toLocaleString()}, 
+                        C3: ${ex.C3.toLocaleString()}, 
+                        C4: ${ex.C4.toLocaleString()}
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    const tableHTML = `
+        <div class="bg-gray-50/30 rounded-xl border border-gray-100 p-4 mb-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                📊 รายละเอียดแยกตามหมวดหมู่ผู้ใช้ทาง
+            </h3>
+            <div class="overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar border border-gray-100 rounded-lg">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-600 bg-gray-100 sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-3 px-4 font-semibold">หมวดหมู่</th>
+                            <th class="py-3 px-4 font-semibold text-right">จำนวน (คัน)</th>
+                            <th class="py-3 px-4 font-semibold text-right">ยอดเงิน (บาท)</th>
+                            <th class="py-3 px-4 font-semibold text-right">รายละเอียด (C1-C4)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // 4. สร้าง SLA Metrics
+    const slaHTML = `
+        <div class="bg-white rounded-xl border border-gray-100 p-4 mb-2 shadow-sm">
+            <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                ⏱️ SLA METRICS การประมวลผล
+            </h3>
+            <div class="grid grid-cols-2 gap-y-2 text-sm">
+                <div class="text-gray-500">ประเมินทั้งหมด:</div>
+                <div class="text-right font-semibold text-gray-700">${result.sla_metrics.total_evaluated.toLocaleString()} คัน</div>
+                
+                <div class="text-gray-500">น้อยกว่า 8 นาที:</div>
+                <div class="text-right font-semibold text-emerald-600">${result.sla_metrics.under_8_mins.toLocaleString()} คัน</div>
+                
+                <div class="text-gray-500">มากกว่า 8 นาที:</div>
+                <div class="text-right font-semibold text-red-500">${result.sla_metrics.over_8_mins.toLocaleString()} คัน</div>
+                
+                <div class="text-gray-500">เฉลี่ยต่อวัน:</div>
+                <div class="text-right font-semibold text-purple-600">${result.sla_metrics.daily_avg_mins} นาที</div>
+            </div>
+        </div>
+    `;
+
+    return `<div class="text-left font-sans space-y-4 mt-2">
+                ${headerHTML}
+                ${summaryHTML}
+                ${tableHTML}
+                ${slaHTML}
+            </div>`;
+}
+
+// ==========================================
+// 📌 ส่วนที่ 2.5: ฟังก์ชันใหม่สำหรับ R07
+// ==========================================
+function createR07HTML(result) {
+    // 1. สร้างแถวตารางจาก object reasons (R1, R2, R3, ...)
+    let reasonsHTML = '';
+    for (const [code, info] of Object.entries(result.reasons)) {
+        reasonsHTML += `
+            <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td class="py-2.5 px-4 font-bold text-slate-700 text-sm w-16 whitespace-nowrap">${code}</td>
+                <td class="py-2.5 px-4 text-slate-600 text-sm">${info.description}</td>
+                <td class="py-2.5 px-4 text-right font-black text-rose-500 text-sm whitespace-nowrap">${formatNum(info.value)} คัน</td>
+            </tr>
+        `;
+    }
+
+    return `
+        <div class="text-left font-sans space-y-4 mt-2">
+            <!-- Header -->
+            <div class="bg-purple-50/50 rounded-xl p-4 border border-purple-100 mb-4">
+                <div class="flex items-center text-purple-700 text-sm font-semibold mb-2">
+                    📍 เส้นทาง (ROUTE)
+                </div>
+                <div class="text-slate-800 font-bold text-base mb-1">${result.filters.route}</div>
+                <div class="text-slate-500 text-sm flex items-center">
+                    📅 วันที่: ${result.filters.date_start} ถึง ${result.filters.date_end}
+                </div>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="bg-rose-50 rounded-xl border border-rose-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-bold text-rose-500 mb-1 uppercase tracking-widest">จำนวนรถที่ไม่สามารถตรวจสอบได้ทั้งหมด</div>
+                <div class="text-3xl font-black text-rose-600">${formatNum(result.summary.total_unverifiable)} <span class="text-base font-normal text-rose-500">คัน</span></div>
+            </div>
+
+            <!-- Details Table -->
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                <div class="bg-slate-100 px-4 py-3 text-xs font-bold text-slate-600 flex items-center">
+                    <span class="uppercase">🔍 รายละเอียดสาเหตุ (R-CODES)</span>
+                </div>
+                <div class="overflow-x-auto max-h-[350px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-white sticky top-0 shadow-sm border-b border-slate-200 z-10">
+                            <tr class="text-[11px] text-slate-400 uppercase tracking-wider">
+                                <th class="py-3 px-4 font-bold">รหัส</th>
+                                <th class="py-3 px-4 font-bold">รายละเอียดสาเหตุ</th>
+                                <th class="py-3 px-4 font-bold text-right">จำนวน</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            ${reasonsHTML}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ==========================================
+// 📌 ส่วนที่ 2.6: ฟังก์ชันปรับปรุงสำหรับ R08
+// ==========================================
+function createR08HTML(result) {
+    const filters = result.filters || {};
+    const summary = result.summary || {};
+    
+    // ดึงยอดรวมจาก total_exempt ใน JSON
+    const totalCount = summary.total_exempt?.count || 0;
+    const totalAmount = summary.total_exempt?.amount || 0;
+
+    // 1. สร้างส่วนหัว (Header)
+    const headerHTML = `
+        <div class="bg-purple-50/50 rounded-xl p-4 border border-purple-100 mb-4">
+            <div class="flex items-center text-purple-700 text-sm font-semibold mb-2">
+                📍 เส้นทาง (ROUTE)
+            </div>
+            <div class="text-slate-800 font-bold text-base mb-1">${filters.route || '-'}</div>
+            <div class="text-slate-500 text-sm flex items-center">
+                📅 วันที่: ${filters.date_start || '-'} ถึง ${filters.date_end || '-'}
+            </div>
+        </div>
+    `;
+
+    // 2. สร้างการ์ดสรุปยอด (Summary Cards)
+    const summaryHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-slate-500 mb-1">รายการทั้งหมด</div>
+                <div class="text-xl font-bold text-slate-800">${formatNum(totalCount)}</div>
+            </div>
+            <div class="bg-blue-50/50 rounded-xl border border-blue-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-blue-500 mb-1">ยอดรวมผ่าน (Exempt)</div>
+                <div class="text-xl font-bold text-blue-700">${formatNum(totalCount)}</div>
+            </div>
+            <div class="bg-amber-50/50 rounded-xl border border-amber-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-amber-500 mb-1">ยอดเงินรวม (บาท)</div>
+                <div class="text-xl font-bold text-amber-700">${formatNum(totalAmount)}</div>
+            </div>
+        </div>
+    `;
+
+    // 3. แปลงหมวดหมู่ย่อยจาก summary มาแสดงในตาราง
+    const subItems = [
+        { name: 'Master Data', data: summary.master_data },
+        { name: 'อนุมัติโดยเจ้าหน้าที่', data: summary.officer_approved },
+        { name: 'รถยกเว้นตามช่วงเวลา', data: summary.scheduled_letter }
+    ].filter(item => item.data);
+
+    let tableRows = '';
+    if (subItems.length > 0) {
+        subItems.forEach(item => {
+            tableRows += `
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-4 font-medium text-slate-700 text-sm">${item.name}</td>
+                    <td class="py-3 px-4 text-right text-slate-600 text-sm">${formatNum(item.data.count || 0)} คัน</td>
+                    <td class="py-3 px-4 text-right font-semibold text-purple-600 text-sm">${formatNum(item.data.amount || 0)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        tableRows = `
+            <tr>
+                <td colspan="3" class="py-4 text-center text-slate-400 text-sm">ไม่พบข้อมูลรายละเอียดรายงาน R08</td>
+            </tr>
+        `;
+    }
+
+    const tableHTML = `
+        <div class="bg-slate-50/30 rounded-xl border border-slate-100 p-4 mb-2">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center">
+                📊 รายละเอียดรายงาน R08
+            </h3>
+            <div class="overflow-x-auto max-h-[350px] overflow-y-auto custom-scrollbar border border-slate-100 rounded-lg">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-600 bg-slate-100 sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-3 px-4 font-semibold">รายการ / หมวดหมู่</th>
+                            <th class="py-3 px-4 font-semibold text-right">จำนวน</th>
+                            <th class="py-3 px-4 font-semibold text-right">ยอดเงิน (บาท)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    return `<div class="text-left font-sans space-y-4 mt-2">
+                ${headerHTML}
+                ${summaryHTML}
+                ${tableHTML}
+            </div>`;
+}
+
+// ==========================================
+// 📌 ส่วนที่ 2.7: ฟังก์ชันสำหรับ R09 (ปรับตรงตาม JSON จริง)
+// ==========================================
+function createR09HTML(result) {
+    const filters = result.filters || {};
+    const summary = result.summary || {};
+    const dataList = result.data || []; 
+
+    // 1. ส่วนหัว (Header)
+    const headerHTML = `
+        <div class="bg-purple-50/50 rounded-xl p-4 border border-purple-100 mb-4">
+            <div class="flex items-center text-purple-700 text-sm font-semibold mb-2">
+                📍 เส้นทาง (ROUTE)
+            </div>
+            <div class="text-slate-800 font-bold text-base mb-1">${filters.route || '-'}</div>
+            <div class="text-slate-500 text-sm flex items-center">
+                📅 วันที่: ${filters.date_start || '-'} ถึง ${filters.date_end || '-'}
+            </div>
+        </div>
+    `;
+
+    // 2. การ์ดสรุปยอด (Summary Cards)
+    const totalVehicles = summary.total_vehicles || 0;
+    const totalLanes = dataList.length;
+
+    const summaryHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div class="bg-white rounded-xl border border-slate-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-slate-500 mb-1">จำนวนรถรวมทั้งหมด</div>
+                <div class="text-xl font-bold text-slate-800">${formatNum(totalVehicles)} <span class="text-sm font-normal text-slate-500">คัน</span></div>
+            </div>
+            <div class="bg-purple-50/50 rounded-xl border border-purple-100 p-4 text-center shadow-sm">
+                <div class="text-xs font-semibold text-purple-600 mb-1">จำนวนช่องทางที่บันทึกข้อมูล</div>
+                <div class="text-xl font-bold text-purple-700">${formatNum(totalLanes)} <span class="text-sm font-normal text-purple-500">ช่องทาง</span></div>
+            </div>
+        </div>
+    `;
+
+    // 3. ตารางรายละเอียดแยกตาม Lane
+    let tableRows = '';
+    if (dataList.length > 0) {
+        dataList.forEach(item => {
+            const laneName = item.lane || '-';
+            const count = item.total || 0;
+            // คำนวณสัดส่วน % จากยอดรวมทั้งหมด
+            const percent = totalVehicles > 0 ? ((count / totalVehicles) * 100).toFixed(2) : '0.00';
+
+            tableRows += `
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="py-3 px-4 font-medium text-slate-700 text-sm">${laneName}</td>
+                    <td class="py-3 px-4 text-right font-semibold text-purple-600 text-sm">${formatNum(count)} คัน</td>
+                    <td class="py-3 px-4 text-right text-slate-500 text-sm">${percent}%</td>
+                </tr>
+            `;
+        });
+    } else {
+        tableRows = `
+            <tr>
+                <td colspan="3" class="py-4 text-center text-slate-400 text-sm">ไม่พบข้อมูลรายละเอียดรายงาน R09</td>
+            </tr>
+        `;
+    }
+
+    const tableHTML = `
+        <div class="bg-slate-50/30 rounded-xl border border-slate-100 p-4 mb-2">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center">
+                📊 รายละเอียดปริมาณจราจรแยกตามช่องทาง (R09)
+            </h3>
+            <div class="overflow-x-auto max-h-[350px] overflow-y-auto custom-scrollbar border border-slate-100 rounded-lg">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-600 bg-slate-100 sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="py-3 px-4 font-semibold">ด่าน / ช่องทาง (Lane)</th>
+                            <th class="py-3 px-4 font-semibold text-right">จำนวนรถ</th>
+                            <th class="py-3 px-4 font-semibold text-right">สัดส่วน (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        ${tableRows}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    return `<div class="text-left font-sans space-y-4 mt-2">
+                ${headerHTML}
+                ${summaryHTML}
+                ${tableHTML}
+            </div>`;
+}
+
+// ==========================================
+// 📌 ส่วนที่ 3: ฟังก์ชันหลักควบคุมการอัปโหลดและแยกเรนเดอร์ตามรายงาน
+// ==========================================
+async function uploadAndProcessPDF(input, reportKey) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        Swal.fire({
+            icon: 'error', title: 'ผิดพลาด', text: 'กรุณาอัปโหลดไฟล์ PDF เท่านั้นครับ',
+            confirmButtonColor: '#a855f7', customClass: { popup: 'rounded-3xl' }
+        });
+        input.value = ''; 
+        return;
+    }
+
+    Swal.fire({
+        title: `กำลังวิเคราะห์ ${reportKey}...`,
+        text: `กำลังส่ง ${file.name} ไปประมวลผลหลังบ้าน`,
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); },
+        customClass: { popup: 'rounded-3xl' }
+    });
+
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        // 📌 1. กำหนด URL Endpoint ให้ตรงกับรายงาน (เพิ่ม R07 และ R08)
+        let apiUrl = "https://pdf-cre.vercel.app/api/process"; // Default (R05)
+        if (reportKey === 'R06') {
+            apiUrl = "https://pdf-cre.vercel.app/api/process-r06";
+        } else if (reportKey === 'R07') {
+            apiUrl = "https://pdf-cre.vercel.app/api/process-r07"; 
+        } else if (reportKey === 'R08') {
+            apiUrl = "https://pdf-cre.vercel.app/api/process-r08"; 
+        } else if (reportKey === 'R09') {
+            apiUrl = "https://pdf-cre.vercel.app/api/process-r09"; // ⚡ เพิ่ม API ของ R09
+        }
+
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('API ตอบกลับล้มเหลว');
+
+        const result = await response.json();
+        console.log(`[${reportKey}] ได้ข้อมูลมาแล้ว:`, result);
+
+        // 📌 2. แยก HTML ตามประเภทรายงานอย่างเด็ดขาด
+        let htmlContent = '';
+        let modalWidth = '600px';
+
+        if (reportKey === 'R05') {
+	  fillR05ManualEntry(result);
+            htmlContent = `
+                <div class="text-left font-sans space-y-4 mt-2">
+                    ${createReportHeader(result.filters)}
+                    ${createReportSummary(result.summary, result.table_data[0])}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        ${createSystemTable(result.table_data)}
+                        ${createVehicleTable(result.table_data[0])}
+                    </div>
+                </div>
+            `;
+            modalWidth = '600px';
+        } else if (reportKey === 'R06') {
+            fillR06ManualEntry(result);
+            htmlContent = createR06HTML(result); 
+            modalWidth = '750px'; 
+        } else if (reportKey === 'R07') {
+            fillR07ManualEntry(result); // 👈 เพิ่มบรรทัดนี้
+            htmlContent = createR07HTML(result); 
+            modalWidth = '700px'; 
+        } else if (reportKey === 'R08') {
+            fillR08ManualEntry(result); // 👈 เพิ่มบรรทัดนี้
+            htmlContent = createR08HTML(result); 
+            modalWidth = '750px';
+        } else if (reportKey === 'R09') {
+            fillR09ManualEntry(result); // 👈 เพิ่มบรรทัดนี้
+            htmlContent = createR09HTML(result); 
+            modalWidth = '750px';            
+        } else {
+            htmlContent = `<div class="text-slate-500 text-center py-8">รายงาน ${reportKey} ยังไม่ได้กำหนดเทมเพลตครับ 🚀</div>`;
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: `วิเคราะห์รายงาน ${reportKey} สำเร็จ!`,
+            html: htmlContent,
+            width: modalWidth,
+            confirmButtonColor: '#fbbf24',
+            confirmButtonText: 'รับทราบข้อมูล',
+            customClass: { popup: 'rounded-3xl' }
+        });
+
+    } catch (error) {
+        console.error("Upload error:", error);
+        Swal.fire({
+            icon: 'error',
+            title: 'เชื่อมต่อล้มเหลว',
+            text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือลองใหม่อีกครั้ง',
+            confirmButtonColor: '#ef4444',
+            customClass: { popup: 'rounded-3xl' }
+        });
+    } finally {
+        input.value = '';
+    }
+}
+
+// ==========================================
+// 📌 ฟังก์ชันเติมข้อมูล Manual Entry สำหรับ R05 (จากการวิเคราะห์ PDF)
+// ==========================================
+function fillR05ManualEntry(result) {
+    if (!result) return;
+
+    try {
+        // 1. ดึงข้อมูลจาก JSON Structure ของ R05
+        const summary = result.summary || {};
+        const tableData0 = result.table_data && result.table_data[0] ? result.table_data[0] : {};
+        const tableDataSystem = result.table_data || [];
+
+        // 2. เติมค่าลงใน manualData State ของ R05
+        
+        // ยอดรวมทั้งหมด (Grand Total)
+        manualData.grandTotal = summary.verified || 0;
+
+        // ข้อมูลประเภทรถที่ผ่าน (Verified - Checked)
+        if (tableData0.verified) {
+            manualData.checked.C1 = tableData0.verified.C1 || 0;
+            manualData.checked.C2 = tableData0.verified.C2 || 0;
+            manualData.checked.C3 = tableData0.verified.C3 || 0;
+            manualData.checked.C4 = tableData0.verified.C4 || 0;
+            manualData.checked.total = tableData0.verified.total || summary.verified || 0;
+        }
+
+        // ข้อมูลประเภทรถที่ไม่ผ่าน (Unverified - Unchecked)
+        if (tableData0.unverified) {
+            manualData.unchecked.C1 = tableData0.unverified.C1 || 0;
+            manualData.unchecked.C2 = tableData0.unverified.C2 || 0;
+            manualData.unchecked.C3 = tableData0.unverified.C3 || 0;
+            manualData.unchecked.C4 = tableData0.unverified.C4 || 0;
+            manualData.unchecked.total = tableData0.unverified.total || summary.unverified || 0;
+        }
+
+        // ข้อมูลแยกตามระบบอนุมัติ (Approval System)
+        // tableDataSystem[1] = ALPR, tableDataSystem[2] = MLPR, tableDataSystem[3] = MANUAL
+        if (tableDataSystem[1]) {
+            manualData.approvalSystem.ALPR.checked = tableDataSystem[1].verified?.total || 0;
+            manualData.approvalSystem.ALPR.unchecked = tableDataSystem[1].unverified?.total || 0;
+        }
+        if (tableDataSystem[2]) {
+            manualData.approvalSystem.MLPR.checked = tableDataSystem[2].verified?.total || 0;
+            manualData.approvalSystem.MLPR.unchecked = tableDataSystem[2].unverified?.total || 0;
+        }
+        if (tableDataSystem[3]) {
+            manualData.approvalSystem.MANUAL.checked = tableDataSystem[3].verified?.total || 0;
+            manualData.approvalSystem.MANUAL.unchecked = tableDataSystem[3].unverified?.total || 0;
+        }
+
+        // 3. สั่งให้ระบบทำการ Render หน้าจอ Report (Pivot View) ใหม่ทันทีเพื่ออัปเดตข้อมูล
+        if (typeof renderReports === 'function') {
+            renderReports();
+        }
+
+        console.log("Fill R05 Manual Data Completed:", manualData);
+    } catch (err) {
+        console.error("Error in fillR05ManualEntry:", err);
+    }
+}
+
+// ==========================================
+// 📌 ฟังก์ชันตัวช่วย: ดึงค่าข้อมูลโดยไม่ทำลายเลข 0 (ป้องกันเลข 0 กลายเป็นค่าว่าง)
+// ==========================================
+const getSafeValue = (val, fallback = '') => (val !== undefined && val !== null ? val : fallback);
+
+// ==========================================
+// 📌 ฟังก์ชันเติมข้อมูล Manual Entry สำหรับ R06 (ดึงข้อมูลสมาชิกจาก JSON ตรงๆ และเติมช่องว่างครบถ้วน)
+// ==========================================
+function fillR06ManualEntry(result) {
+    if (!result) return;
+
+    try {
+        const summary = result.summary || {};
+        const dataArr = result.data || [];
+        const sla = result.sla_metrics || {};
+
+        // ฟังก์ชันช่วยดึงข้อมูลแต่ละหมวดหมู่จาก JSON ที่ API ส่งมา
+        const getCat = (name) => dataArr.find(d => d.category === name) || { 
+            general: { C1: 0, C2: 0, C3: 0, C4: 0 }, 
+            exempt: { C1: 0, C2: 0, C3: 0, C4: 0 },
+            items: 0,
+            amount: 0
+        };
+        
+        const nonMember = getCat('ไม่ใช่สมาชิก');
+        const memberCat = getCat('สมาชิก'); // ดึงข้อมูล "สมาชิก" โดยตรงจาก JSON
+        const thai = getCat('บุคคลไทย');
+        const foreign = getCat('บุคคลต่างชาติ');
+        const juridical = getCat('นิติบุคคล');
+
+        // ฟังก์ชันแปลงข้อมูลให้อยู่ในรูปแบบโครงสร้างของ manualR06Data.main
+        const mapRow = (cat) => {
+            const exC1 = cat.exempt?.C1 !== undefined ? cat.exempt.C1 : 0;
+            const exC2 = cat.exempt?.C2 !== undefined ? cat.exempt.C2 : 0;
+            const exC3 = cat.exempt?.C3 !== undefined ? cat.exempt.C3 : 0;
+            const exC4 = cat.exempt?.C4 !== undefined ? cat.exempt.C4 : 0;
+            const totalEx = exC1 + exC2 + exC3 + exC4;
+
+            return {
+                items: cat.items !== undefined ? cat.items : '',
+                amount: cat.amount !== undefined ? cat.amount : '',
+                C1: cat.general?.C1 !== undefined ? cat.general.C1 : 0,
+                C2: cat.general?.C2 !== undefined ? cat.general.C2 : 0,
+                C3: cat.general?.C3 !== undefined ? cat.general.C3 : 0,
+                C4: cat.general?.C4 !== undefined ? cat.general.C4 : 0,
+                exItems: totalEx,
+                exC1: exC1,
+                exC2: exC2,
+                exC3: exC3,
+                exC4: exC4
+            };
+        };
+
+        if (typeof manualR06Data !== 'undefined') {
+            // 1. อัปเดตยอดรวมภาพรวม
+            manualR06Data.grandTotal = getSafeValue(summary.total_vehicles, '');
+            manualR06Data.normalTotal = getSafeValue(summary.general_vehicles, '');
+            manualR06Data.exemptTotal = getSafeValue(summary.exempt_vehicles, '');
+
+            // 2. อัปเดตข้อมูลแต่ละแถวหลักลงใน manualR06Data
+            manualR06Data.main.nonMember = mapRow(nonMember);
+            
+            // นำข้อมูล "สมาชิก" จาก JSON มาใส่ตารางหลัก (แถวสมาชิก) โดยตรง
+            const mappedMember = mapRow(memberCat);
+            manualR06Data.main.memberGroup = mappedMember;
+            manualR06Data.main.member = mappedMember;
+            manualR06Data.main.memberTotal = mappedMember;
+
+            // แถวย่อยของสมาชิก
+            manualR06Data.main.memberThai = mapRow(thai);
+            manualR06Data.main.memberForeign = mapRow(foreign);
+            manualR06Data.main.memberJuridical = mapRow(juridical);
+
+            // 3. คำนวณยอดรวมทั้งหมด (total) ระหว่างไม่ใช่สมาชิก + สสมาชิก
+            const parseNum = (v) => (v !== '' && v !== null && !isNaN(v)) ? parseFloat(v) : 0;
+            const keys = ['items', 'amount', 'C1', 'C2', 'C3', 'C4', 'exItems', 'exC1', 'exC2', 'exC3', 'exC4'];
+            let totalRes = {};
+            keys.forEach(k => {
+                totalRes[k] = parseNum(manualR06Data.main.nonMember[k]) + parseNum(manualR06Data.main.memberGroup[k]);
+            });
+            manualR06Data.main.total = totalRes;
+
+            // 4. อัปเดตข้อมูล SLA
+            manualR06Data.sla = {
+                total: getSafeValue(sla.total_evaluated, ''),
+                lessThan8: getSafeValue(sla.under_8_mins, ''),
+                moreThan8: getSafeValue(sla.over_8_mins, ''),
+                avgTime: getSafeValue(sla.daily_avg_mins, '')
+            };
+        }
+
+        // สั่งให้หน้าจอรายงาน (Pivot / Manual View) ทำการ Render ข้อมูลใหม่ทันที
+        if (typeof renderReports === 'function') {
+            renderReports();
+        }
+
+        console.log("Fill R06 Manual Data Completed:", manualR06Data);
+    } catch (err) {
+        console.error("Error in fillR06ManualEntry:", err);
+    }
+}
+
+// ==========================================
+// 📌 สำหรับ R07 (ปรับปรุงการดึงค่า R6 ย่อยให้ตรงกับ JSON ฝั่งหลังบ้าน)
+// ==========================================
+function fillR07ManualEntry(result) {
+    if (!result) return;
+    
+    if (typeof manualR07Data === 'undefined') {
+        console.warn("manualR07Data ยังไม่ได้ถูกประกาศในระบบ");
+        return;
+    }
+
+    // อัปเดตยอดรวมทั้งหมด
+    manualR07Data.grandTotal = getSafeValue(result.summary?.total_unverifiable, '');
+    
+    if (result.reasons) {
+        // 1. จัดการ R ทั่วไป (R1 - R5, R7 - R10)
+        const rCodes = ['R1', 'R2', 'R3', 'R4', 'R5', 'R7', 'R8', 'R9', 'R10', 'R11'];
+        rCodes.forEach(code => {
+            if (manualR07Data.hasOwnProperty(code)) {
+                if (result.reasons[code]) {
+                    manualR07Data[code] = getSafeValue(result.reasons[code].value, '');
+                } else {
+                    manualR07Data[code] = '';
+                }
+            }
+        });
+
+        // 2. จัดการเคลียร์และอัปเดต R6 ย่อยทั้ง 5 ประเภทให้ตรงกับ Key ใน JSON โดยตรง
+        const r6Mapping = {
+            'R6_RED': 'R6_RED',         // ป้ายแดง
+            'R6_REPAIR': 'R6_SALE',     // เพื่อขายเพื่อซ่อม (UI ใช้รหัส R6_SALE)
+            'R6_TC': 'R6_TC',           // TC
+            'R6_QC': 'R6_QC',           // QC
+            'R6_PERMITTED': 'R6_FORBID' // รถที่ไม่ได้รับอนุญาตฯ (UI ใช้รหัส R6_FORBID)
+        };
+
+        // เคลียร์ค่า R6 ย่อยใน UI ทั้งหมดก่อนป้องกันค่าค้าง
+        Object.values(r6Mapping).forEach(uiKey => {
+            if (manualR07Data.hasOwnProperty(uiKey)) {
+                manualR07Data[uiKey] = '';
+            }
+        });
+
+        // วนลูปหยิบค่าจาก Key ฝั่ง JSON มาใส่ UI ตาม Mapping ที่กำหนด
+        Object.keys(r6Mapping).forEach(jsonKey => {
+            const uiKey = r6Mapping[jsonKey];
+            if (result.reasons[jsonKey] && manualR07Data.hasOwnProperty(uiKey)) {
+                manualR07Data[uiKey] = getSafeValue(result.reasons[jsonKey].value, '');
+            }
+        });
+    }
+    
+    // รีเฟรชหน้าจอถ้าเราอยู่ที่แท็บ REPORT
+    if (document.getElementById('view-pivot') && !document.getElementById('view-pivot').classList.contains('hidden')) {
+        if (typeof renderReports === 'function') renderReports();
+    }
+}
+
+// ==========================================
+// 📌 สำหรับ R08
+// ==========================================
+function fillR08ManualEntry(result) {
+    if (!result || !result.summary) return;
+    const summary = result.summary;
+    
+    if (typeof manualR08Data !== 'undefined') {
+        manualR08Data.totalExempt = { count: getSafeValue(summary.total_exempt?.count, ''), amount: getSafeValue(summary.total_exempt?.amount, '') };
+        manualR08Data.masterData = { count: getSafeValue(summary.master_data?.count, ''), amount: getSafeValue(summary.master_data?.amount, '') };
+        manualR08Data.staffApproved = { count: getSafeValue(summary.officer_approved?.count, ''), amount: getSafeValue(summary.officer_approved?.amount, '') };
+        manualR08Data.periodBook = { count: getSafeValue(summary.scheduled_letter?.count, ''), amount: getSafeValue(summary.scheduled_letter?.amount, '') };
+    }
+    
+    if (document.getElementById('view-pivot') && !document.getElementById('view-pivot').classList.contains('hidden')) {
+        if (typeof renderReports === 'function') renderReports();
+    }
+}
+
+// ==========================================
+// 📌 สำหรับ R09
+// ==========================================
+function fillR09ManualEntry(result) {
+    if (!result) return;
+    
+    if (typeof manualR09Data !== 'undefined') {
+        if (result.summary) {
+            manualR09Data.grandTotal = getSafeValue(result.summary.total_vehicles, '');
+        }
+
+        if (result.data) {
+            result.data.forEach(item => {
+                const laneName = item.lane;
+                if (manualR09Data.hasOwnProperty(laneName)) {
+                    manualR09Data[laneName] = getSafeValue(item.total, '');
+                }
+            });
+        }
+    }
+    
+    if (document.getElementById('view-pivot') && !document.getElementById('view-pivot').classList.contains('hidden')) {
+        if (typeof renderReports === 'function') renderReports();
     }
 }
 
